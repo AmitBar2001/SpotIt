@@ -1,11 +1,11 @@
 FROM python:3.11-slim
-RUN useradd -m -u 1000 user
-
-USER user
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg sox libsox-fmt-all libsndfile1 && rm -rf /var/lib/apt/lists/*
 
+# Create a non-root user to run the application
+RUN useradd -m -u 1000 user
+USER user
 
 ENV HOME=/home/user \
 	PATH=/home/user/.local/bin:$PATH
