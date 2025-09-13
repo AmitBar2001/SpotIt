@@ -1,0 +1,5 @@
+torch>=1.10,<2.3
+torchaudio>=0.10,<2.3
+demucs==4.0.1
+numpy<2
+soundfile<1
