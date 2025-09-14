@@ -3,6 +3,7 @@ import shutil
 import zipfile
 import subprocess
 import logging
+import os
 from pathlib import Path
 from fastapi import FastAPI, File, UploadFile, HTTPException, Query, BackgroundTasks
 from fastapi.responses import FileResponse
@@ -75,6 +76,12 @@ def download_and_trim_youtube_audio(url: str, start_time: int, duration: int, do
         'external_downloader': 'aria2c',
         'postprocessor_args': ['-ar', '44100', '-ac', '2'], # Ensure 44.1kHz, stereo
     }
+
+    # Securely add proxy from environment variable if it exists
+    proxy_url = os.environ.get("YT_DLP_PROXY")
+    if proxy_url:
+        ydl_opts['proxy'] = proxy_url
+        logger.info("Using proxy for yt-dlp.")
 
     try:
         logger.debug(f"yt_dlp options: {ydl_opts}")
