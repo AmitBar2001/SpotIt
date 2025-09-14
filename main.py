@@ -75,6 +75,7 @@ def download_and_trim_youtube_audio(url: str, start_time: int, duration: int, do
         'logger': logger,
         'external_downloader': 'aria2c',
         'postprocessor_args': ['-ar', '44100', '-ac', '2'], # Ensure 44.1kHz, stereo
+        'cookies': COOKIES_FILE_PATH if os.path.exists(COOKIES_FILE_PATH) else None,
     }
 
     # Securely add proxy from environment variable if it exists
@@ -303,4 +304,13 @@ def separate_from_file(file: UploadFile = File(...), background_tasks: Backgroun
         logger.info(f"Cleaning up files for request {request_id}")
         cleanup_files(temp_upload_path, temp_output_path, temp_zip_path)
         raise
+
+COOKIES_FILE_PATH = "yt_dlp_cookies.txt"
+cookies_content = os.environ.get("YT_DLP_COOKIES")
+if cookies_content:
+    with open(COOKIES_FILE_PATH, "w") as f:
+        f.write(cookies_content)
+    logger.info(f"Wrote yt-dlp cookies to {COOKIES_FILE_PATH}")
+else:
+    logger.info("No YT_DLP_COOKIES environment variable found; not writing cookies file.")
 
