@@ -75,7 +75,7 @@ def download_and_trim_youtube_audio(url: str, start_time: int, duration: int, do
         'logger': logger,
         'external_downloader': 'aria2c',
         'postprocessor_args': ['-ar', '44100', '-ac', '2'], # Ensure 44.1kHz, stereo
-        'cookies': COOKIES_FILE_PATH if os.path.exists(COOKIES_FILE_PATH) else None,
+        'cookiefile': COOKIES_FILE_PATH if os.path.exists(COOKIES_FILE_PATH) else None,
     }
 
     # Securely add proxy from environment variable if it exists
