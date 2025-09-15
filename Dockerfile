@@ -21,11 +21,8 @@ COPY --chown=user test.mp3 .
 RUN python -m demucs -n htdemucs_6s -d cpu test.mp3
 RUN rm -r separated
 
-USER root
-RUN --mount=type=secret,id=YT_DLP_COOKIES,mode=0060,required=false \
-	cp /run/secrets/YT_DLP_COOKIES ./yt_dlp_cookies.txt && \
-	chown user:user ./yt_dlp_cookies.txt
-USER user
+RUN --mount=type=secret,id=YT_DLP_COOKIES,mode=666,required=false \
+	cp /run/secrets/YT_DLP_COOKIES ./yt_dlp_cookies.txt
 
 # Now copy the rest of your requirements and install them
 COPY --chown=user requirements.txt .
