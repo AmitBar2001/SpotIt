@@ -307,10 +307,13 @@ def separate_from_file(file: UploadFile = File(...), background_tasks: Backgroun
 
 COOKIES_FILE_PATH = "yt_dlp_cookies.txt"
 cookies_content = os.environ.get("YT_DLP_COOKIES")
-if cookies_content:
+if cookies_content and not os.path.exists(COOKIES_FILE_PATH):
     with open(COOKIES_FILE_PATH, "w") as f:
         f.write(cookies_content)
     logger.info(f"Wrote yt-dlp cookies to {COOKIES_FILE_PATH}")
 else:
-    logger.info("No YT_DLP_COOKIES environment variable found; not writing cookies file.")
+    if cookies_content:
+        logger.info(f"YT_DLP_COOKIES environment variable found but {COOKIES_FILE_PATH} already exists; not overwriting.")
+    else:
+        logger.info("No YT_DLP_COOKIES environment variable found; not writing cookies file.")
 
