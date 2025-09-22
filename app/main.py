@@ -14,10 +14,9 @@ from app.logger import logger
 # Create directories for temporary file storage
 UPLOAD_DIR = Path("temp_uploads")
 OUTPUT_DIR = Path("separated_output")
-ZIP_DIR = Path("temp_zips")
 DOWNLOAD_DIR = Path("temp_downloads")
 
-for dir_path in [UPLOAD_DIR, OUTPUT_DIR, ZIP_DIR, DOWNLOAD_DIR]:
+for dir_path in [UPLOAD_DIR, OUTPUT_DIR, DOWNLOAD_DIR]:
     dir_path.mkdir(exist_ok=True)
 
 
@@ -60,18 +59,22 @@ def cleanup_files(*paths):
 
 
 # --- Business Logic Functions ---
+
 def download_and_trim_youtube_audio(
-    url: str, start_time: int, duration: int, download_path: Path
+    url: str, start_time: int | None, duration: int, download_path: Path
 ) -> Path:
-    """Downloads audio from a YouTube URL and trims it using ffmpeg."""
+    """Downloads audio from a YouTube URL and trims it using ffmpeg. If start_time is None, auto-pick using heatmap."""
     logger.info(
         f"Starting download_and_trim_youtube_audio for URL: {url}, start_time: {start_time}, duration: {duration}, download_path: {download_path}"
     )
 
-    # yt-dlp options to download the best audio-only format
+
+    # Use yt-dlp template to get video title as filename (safe)
+    # We'll use download_path as the directory, and let yt-dlp set the filename
+    outtmpl = str(download_path / '%(title)s.%(ext)s')
     ydl_opts = {
         "format": "bestaudio/best",
-        "outtmpl": str(download_path),
+        "outtmpl": outtmpl,
         "noplaylist": True,
         "postprocessors": [
             {
@@ -83,6 +86,8 @@ def download_and_trim_youtube_audio(
         "external_downloader": "aria2c",
         "postprocessor_args": ["-ar", "44100", "-ac", "2"],  # Ensure 44.1kHz, stereo
         "cookiefile": COOKIES_FILE_PATH if os.path.exists(COOKIES_FILE_PATH) else None,
+        "writesubtitles": False,
+        "writeinfojson": True,  # Download info JSON
     }
 
     # Securely add proxy from environment variable if it exists
@@ -94,25 +99,67 @@ def download_and_trim_youtube_audio(
     try:
         logger.debug(f"yt_dlp options: {ydl_opts}")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-        logger.info(f"Downloaded audio to {download_path.with_suffix('.wav')}")
+            video_info_json = ydl.extract_info(url, download=True)
+        
+        if not video_info_json:
+            logger.error("yt-dlp did not return video info.")
+            raise Exception("yt-dlp did not return video info.")
+        
+        # Find the downloaded file path
+        title = video_info_json.get('title')
+        
+        if not title:
+            logger.error("Could not extract video title from yt-dlp info.")
+            raise Exception("Could not extract video title from yt-dlp info.")
+        
+        original_audio_path = download_path / f"{title}.wav"
+        logger.info(f"Downloaded audio to {original_audio_path}")
     except Exception as e:
         logger.error(f"Failed to download audio from YouTube: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to download audio from YouTube: {e}"
         )
 
-    original_audio_path = download_path.with_suffix(".wav")
-    trimmed_audio_path = download_path.parent / f"trimmed_{download_path.stem}.wav"
+    # If start_time is None, auto-pick using heatmap
+    auto_start_time = None
+
+    if start_time is None:
+        try:
+            heatmap = video_info_json.get("heatmap")
+            if not heatmap or len(heatmap) < 4:
+                raise Exception("No or insufficient heatmap data in info JSON.")
+            # Exclude the first interval (starts at 0)
+            intervals = heatmap[1:]
+            
+            # Find window of 3 consecutive intervals with highest average value
+            max_avg = -1
+            max_idx = 0
+            for i in range(len(intervals) - 2):
+                avg = sum(intervals[j]["value"] for j in range(i, i+3)) / 3
+                if avg > max_avg:
+                    max_avg = avg
+                    max_idx = i
+            
+            # Start time is 10 seconds before the start of the best window
+            best_start = int(intervals[max_idx]["start_time"])
+            auto_start_time = max(0, best_start - 10)
+            logger.info(f"Auto-picked start_time from heatmap: {auto_start_time}")
+        except Exception as e:
+            logger.error(f"Failed to auto-pick start_time from heatmap: {e}")
+            auto_start_time = 0
+    else:
+        auto_start_time = start_time
+
+    trimmed_audio_path = download_path / f"trimmed_{original_audio_path.stem}.wav"
 
     # Use ffmpeg to trim the audio
-    # The command is: ffmpeg -ss [start_time] -i [input_file] -t [duration] -c copy [output_file]
+    # The command is: ffmpeg -ss [start_time] -i [input_file] -t [duration] -c [output_file]
     try:
         subprocess.run(
             [
                 "ffmpeg",
                 "-ss",
-                str(start_time),
+                str(auto_start_time),
                 "-i",
                 str(original_audio_path),
                 "-t",
@@ -160,8 +207,8 @@ async def root():
 )
 def separate_from_youtube(
     request: YouTubeLinkRequest,
-    start_time: int = Query(
-        0, ge=0, description="Start time in seconds for the audio clip."
+    start_time: int | None = Query(
+        None, ge=0, description="Start time in seconds for the audio clip. If not specified, will be auto-picked using the heatmap."
     ),
     duration: int = Query(
         30, gt=0, le=300, description="Duration of the audio clip in seconds (max 300)."
@@ -177,10 +224,14 @@ def separate_from_youtube(
 
         # Download and trim audio
         trimmed_audio_path = download_and_trim_youtube_audio(
-            str(request.url), start_time, duration, DOWNLOAD_DIR / "temp"
+            str(request.url), start_time, duration, DOWNLOAD_DIR
         )
-        # Use the trimmed file's stem (which is the video title) for directory naming
-        dir_name = sanitize_filename(trimmed_audio_path.stem.replace("trimmed_", ""))
+        # The original audio file is named after the video title, so get the title from the trimmed file name
+        if trimmed_audio_path.stem.startswith("trimmed_"):
+            video_title = trimmed_audio_path.stem.replace("trimmed_", "")
+        else:
+            video_title = trimmed_audio_path.stem
+        dir_name = sanitize_filename(video_title)
         temp_output_path = OUTPUT_DIR / dir_name
 
         logger.info(f"Using output directory: {temp_output_path}")
