@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from fastapi import HTTPException
-from logger import logger
+from app.logger import logger
 from demucs.separate import main as demucs_separate
 import subprocess
 

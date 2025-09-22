@@ -3,7 +3,7 @@ import sys
 import concurrent.futures
 from datetime import datetime, timedelta
 from pathlib import Path
-from logger import logger
+from app.logger import logger
 
 
 # --- Custom Exceptions ---

@@ -10,7 +10,7 @@ USER user
 ENV HOME=/home/user \
 	PATH=/home/user/.local/bin:$PATH
 
-WORKDIR $HOME/app
+WORKDIR $HOME
 
 # Install base (slow-changing and heavy) requirements first
 COPY --chown=user requirements-base.txt .
@@ -24,11 +24,11 @@ RUN rm -r separated
 RUN --mount=type=secret,id=YT_DLP_COOKIES,mode=666,required=true \
 	--mount=type=secret,id=OCI_PRIVATE_KEY,mode=666,required=true \
 	cp /run/secrets/YT_DLP_COOKIES ./yt_dlp_cookies.txt && \
-	cp /run/secrets/OCI_PRIVATE_KEY ./.oci/private_key.pem
+	cp /run/secrets/OCI_PRIVATE_KEY .oci/private_key.pem
 
 # Now copy the rest of your requirements and install them
 COPY --chown=user requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY --chown=user main.py .
+COPY --chown=user app ./app
 EXPOSE 7860
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]

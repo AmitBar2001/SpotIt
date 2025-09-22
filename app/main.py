@@ -6,9 +6,9 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Query, BackgroundT
 from pydantic import BaseModel, HttpUrl
 import yt_dlp
 import re
-from files import merge_stems_and_export, run_demucs_separation
-from s3 import upload_and_get_presigned_urls, S3UploadError, S3PresignedUrlError
-from logger import logger
+from app.files import merge_stems_and_export, run_demucs_separation
+from app.s3 import upload_and_get_presigned_urls, S3UploadError, S3PresignedUrlError
+from app.logger import logger
 
 # --- Configuration ---
 # Create directories for temporary file storage

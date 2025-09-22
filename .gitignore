@@ -1,3 +1,3 @@
 venv
 test.mp3
-.oci/private_key.pem
+app/.oci/private_key.pem
