@@ -20,9 +20,11 @@ DOWNLOAD_DIR = Path("temp_downloads")
 for dir_path in [UPLOAD_DIR, OUTPUT_DIR, ZIP_DIR, DOWNLOAD_DIR]:
     dir_path.mkdir(exist_ok=True)
 
+
 # --- Pydantic Models ---
 class YouTubeLinkRequest(BaseModel):
     url: HttpUrl
+
 
 # --- FastAPI App Initialization ---
 app = FastAPI(
@@ -31,10 +33,12 @@ app = FastAPI(
     version="1.1.0",
 )
 
+
 # --- Helper Functions ---
 def sanitize_filename(name: str) -> str:
     """Sanitize a string to be safe for use as a directory or file name."""
     return re.sub(r"[^a-zA-Z0-9_\-\.]", "_", name)
+
 
 def cleanup_files(*paths):
     """Removes files and directories to free up space after processing."""
@@ -136,6 +140,7 @@ def download_and_trim_youtube_audio(
     cleanup_files(original_audio_path)
 
     return trimmed_audio_path
+
 
 # --- API Endpoints ---
 @app.get(
@@ -282,6 +287,7 @@ def separate_from_file(
         logger.error(f"Error processing file upload {file.filename}: {e}")
         cleanup_files(temp_upload_path, temp_output_path)
         raise
+
 
 # --- yt-dlp Cookies Handling ---
 COOKIES_FILE_PATH = "yt_dlp_cookies.txt"
