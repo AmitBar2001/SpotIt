@@ -42,19 +42,19 @@ def _upload_and_create_presigned_url(
         logger.debug(f"Opening file '{local_file_path}' for upload.")
         with open(local_file_path, "rb") as f:
             logger.debug(f"Calling put_object for '{object_name}'.")
-            response = client.put_object(
+            response: oci.Response = client.put_object(
                 namespace_name=namespace,
                 bucket_name=bucket_name,
                 object_name=object_name,
                 put_object_body=f,
             )
-        logger.debug(f"put_object response status: {getattr(response, 'status', None)}")
-        if not hasattr(response, "status") or response.status != 200:
+        logger.debug(f"put_object response status: {response.status}")
+        if response.status != 200:
             logger.error(
-                f"Failed to upload '{local_file_path}' to bucket '{bucket_name}': status={getattr(response, 'status', None)}"
+                f"Failed to upload '{local_file_path}' to bucket '{bucket_name}': status={response.status}"
             )
             raise S3UploadError(
-                f"Failed to upload '{local_file_path}' to bucket '{bucket_name}': status={getattr(response, 'status', None)}"
+                f"Failed to upload '{local_file_path}' to bucket '{bucket_name}': status={response.status}"
             )
         logger.info(f"Successfully uploaded '{local_file_path}' to '{object_name}'.")
     except Exception as e:
@@ -75,23 +75,26 @@ def _upload_and_create_presigned_url(
             object_name=object_name,
         )
         logger.debug(f"Calling create_preauthenticated_request for '{object_name}'.")
-        presigned_request_response = client.create_preauthenticated_request(
-            namespace_name=namespace,
-            bucket_name=bucket_name,
-            create_preauthenticated_request_details=presigned_request_details,
+        presigned_request_response: oci.Response = (
+            client.create_preauthenticated_request(
+                namespace_name=namespace,
+                bucket_name=bucket_name,
+                create_preauthenticated_request_details=presigned_request_details,
+            )
         )
         logger.debug(
-            f"create_preauthenticated_request response status: {getattr(presigned_request_response, 'status', None)}"
+            f"create_preauthenticated_request response status: {presigned_request_response.status}"
         )
-        if not hasattr(
-            presigned_request_response, "status"
-        ) or presigned_request_response.status not in (200, 201):
+        if presigned_request_response.status not in (200, 201):
             logger.error(
-                f"Failed to create pre-authenticated request for '{object_name}': status={getattr(presigned_request_response, 'status', None)}"
+                f"Failed to create pre-authenticated request for '{object_name}': status={presigned_request_response.status}"
             )
             raise S3PresignedUrlError(
-                f"Failed to create pre-authenticated request for '{object_name}': status={getattr(presigned_request_response, 'status', None)}"
+                f"Failed to create pre-authenticated request for '{object_name}': status={presigned_request_response.status}"
             )
+        presigned_request: oci.object_storage.models.PreauthenticatedRequest = (
+            presigned_request_response.data
+        )
         logger.info(f"Created pre-authenticated request for '{object_name}'.")
     except Exception as e:
         logger.error(
@@ -101,10 +104,10 @@ def _upload_and_create_presigned_url(
             f"Exception during pre-authenticated request creation for '{object_name}': {e}"
         )
 
-    base_url = client.base_url
-    url = f"{base_url}{presigned_request_response.data.access_uri}"
-    logger.info(f"Generated presigned URL for '{object_name}': {url}")
-    return url
+    logger.info(
+        f"Generated presigned URL for '{object_name}': {presigned_request.access_uri}"
+    )
+    return presigned_request.access_uri
 
 
 def upload_and_get_presigned_urls(
@@ -179,15 +182,10 @@ def upload_and_get_presigned_urls(
                         f" - Successfully processed one file. Total URLs: {len(presigned_urls)}"
                     )
                 except (S3UploadError, S3PresignedUrlError) as exc:
-                    logger.error(
-                        f"A file generation task failed: {exc}", file=sys.stderr
-                    )
+                    logger.error(f"A file generation task failed: {exc}")
                     raise
                 except Exception as exc:
-                    logger.error(
-                        f"Unexpected error in file generation task: {exc}",
-                        file=sys.stderr,
-                    )
+                    logger.error(f"Unexpected error in file generation task: {exc}")
                     raise S3UploadError(
                         f"Unexpected error in file generation task: {exc}"
                     )
@@ -195,16 +193,12 @@ def upload_and_get_presigned_urls(
         return presigned_urls
 
     except oci.exceptions.ServiceError as e:
-        logger.error(f"OCI ServiceError: {e.code} - {e.message}", file=sys.stderr)
-        logger.error(
-            "Please check your OCI configuration and permissions.", file=sys.stderr
-        )
+        logger.error(f"OCI ServiceError: {e.code} - {e.message}")
+        logger.error("Please check your OCI configuration and permissions.")
         raise S3UploadError(f"OCI ServiceError: {e.code} - {e.message}")
     except FileNotFoundError:
-        logger.error(
-            f"Error: The directory '{directory_path}' was not found.", file=sys.stderr
-        )
+        logger.error(f"Error: The directory '{directory_path}' was not found.")
         raise S3UploadError(f"Error: The directory '{directory_path}' was not found.")
     except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}", file=sys.stderr)
+        logger.error(f"An unexpected error occurred: {e}")
         raise S3UploadError(f"An unexpected error occurred: {e}")
