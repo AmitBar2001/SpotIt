@@ -18,9 +18,7 @@ class S3PresignedUrlError(Exception):
 NAMESPACE_NAME = "frjafxpufafn"
 BUCKET_NAME = "mp3files"
 
-# Load the default OCI configuration
-# This will look for the config file at ~/.oci/config
-config = oci.config.from_file()
+config = oci.config.from_file(file_location="~/app/.oci/config")
 object_storage_client = oci.object_storage.ObjectStorageClient(config)
 
 
