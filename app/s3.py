@@ -105,9 +105,9 @@ def _upload_and_create_presigned_url(
         )
 
     logger.info(
-        f"Generated presigned URL for '{object_name}': {presigned_request.access_uri}"
+        f"Generated presigned URL for '{object_name}': {presigned_request.full_path}"
     )
-    return presigned_request.access_uri
+    return presigned_request.full_path
 
 
 def upload_and_get_presigned_urls(
