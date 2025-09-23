@@ -62,6 +62,7 @@ def cleanup_files(*paths):
 
 # --- Business Logic Functions ---
 
+
 def download_and_trim_youtube_audio(
     url: str, start_time: int | None, duration: int, download_path: Path
 ) -> Path:
@@ -70,10 +71,9 @@ def download_and_trim_youtube_audio(
         f"Starting download_and_trim_youtube_audio for URL: {url}, start_time: {start_time}, duration: {duration}, download_path: {download_path}"
     )
 
-
     # Use yt-dlp template to get video title as filename (safe)
     # We'll use download_path as the directory, and let yt-dlp set the filename
-    outtmpl = str(download_path / '%(title)s.%(ext)s')
+    outtmpl = str(download_path / "%(title)s.%(ext)s")
     ydl_opts = {
         "format": "bestaudio/best",
         "outtmpl": outtmpl,
@@ -102,18 +102,18 @@ def download_and_trim_youtube_audio(
         logger.debug(f"yt_dlp options: {ydl_opts}")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             video_info_json = ydl.extract_info(url, download=True)
-        
+
         if not video_info_json:
             logger.error("yt-dlp did not return video info.")
             raise Exception("yt-dlp did not return video info.")
-        
+
         # Find the downloaded file path
-        title = video_info_json.get('title')
-        
+        title = video_info_json.get("title")
+
         if not title:
             logger.error("Could not extract video title from yt-dlp info.")
             raise Exception("Could not extract video title from yt-dlp info.")
-        
+
         original_audio_path = download_path / f"{title}.wav"
         logger.info(f"Downloaded audio to {original_audio_path}")
     except Exception as e:
@@ -132,16 +132,16 @@ def download_and_trim_youtube_audio(
                 raise Exception("No or insufficient heatmap data in info JSON.")
             # Exclude the first interval (starts at 0)
             intervals = heatmap[1:]
-            
+
             # Find window of 3 consecutive intervals with highest average value
             max_avg = -1
             max_idx = 0
             for i in range(len(intervals) - 2):
-                avg = sum(intervals[j]["value"] for j in range(i, i+3)) / 3
+                avg = sum(intervals[j]["value"] for j in range(i, i + 3)) / 3
                 if avg > max_avg:
                     max_avg = avg
                     max_idx = i
-            
+
             # Start time is 10 seconds before the start of the best window
             best_start = int(intervals[max_idx]["start_time"])
             auto_start_time = max(0, best_start - 10)
@@ -154,7 +154,7 @@ def download_and_trim_youtube_audio(
 
     trimmed_audio_path = download_path / f"trimmed_{original_audio_path.stem}.wav"
 
-    # TODO: check if replacing this with "--download-sections" in yt-dlp would work faster 
+    # TODO: check if replacing this with "--download-sections" in yt-dlp would work faster
     # Use ffmpeg to trim the audio
     # The command is: ffmpeg -ss [start_time] -i [input_file] -t [duration] -c [output_file]
     try:
@@ -211,7 +211,9 @@ async def root():
 def separate_from_youtube(
     request: YouTubeLinkRequest,
     start_time: int | None = Query(
-        None, ge=0, description="Start time in seconds for the audio clip. If not specified, will be auto-picked using the heatmap."
+        None,
+        ge=0,
+        description="Start time in seconds for the audio clip. If not specified, will be auto-picked using the heatmap.",
     ),
     duration: int = Query(
         30, gt=0, le=300, description="Duration of the audio clip in seconds (max 300)."
@@ -235,7 +237,7 @@ def separate_from_youtube(
         else:
             video_title = trimmed_audio_path.stem
         logger.debug(f"Extracted video title: {video_title}")
-        # Sanitize title for directory name    
+        # Sanitize title for directory name
         dir_name = sanitize_filename(video_title)
         logger.debug(f"Sanitized directory name: {dir_name}")
         temp_output_path = OUTPUT_DIR / dir_name
@@ -302,7 +304,7 @@ def separate_from_file(
                 status_code=400,
                 detail=f"Unsupported file format. Supported: {', '.join(supported_formats)}",
             )
-        
+
         logger.debug(f"input file name: {Path(file.filename).stem}")
         # Sanitize filename for safe storage
         base_name = sanitize_filename(Path(file.filename).stem)
