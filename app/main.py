@@ -154,6 +154,7 @@ def download_and_trim_youtube_audio(
 
     trimmed_audio_path = download_path / f"trimmed_{original_audio_path.stem}.wav"
 
+    # TODO: check if replacing this with "--download-sections" in yt-dlp would work faster 
     # Use ffmpeg to trim the audio
     # The command is: ffmpeg -ss [start_time] -i [input_file] -t [duration] -c [output_file]
     try:
@@ -233,7 +234,10 @@ def separate_from_youtube(
             video_title = trimmed_audio_path.stem.replace("trimmed_", "")
         else:
             video_title = trimmed_audio_path.stem
+        logger.debug(f"Extracted video title: {video_title}")
+        # Sanitize title for directory name    
         dir_name = sanitize_filename(video_title)
+        logger.debug(f"Sanitized directory name: {dir_name}")
         temp_output_path = OUTPUT_DIR / dir_name
 
         logger.info(f"Using output directory: {temp_output_path}")
@@ -298,8 +302,11 @@ def separate_from_file(
                 status_code=400,
                 detail=f"Unsupported file format. Supported: {', '.join(supported_formats)}",
             )
-
+        
+        logger.debug(f"input file name: {Path(file.filename).stem}")
+        # Sanitize filename for safe storage
         base_name = sanitize_filename(Path(file.filename).stem)
+        logger.debug(f"Sanitized base name: {base_name}")
         temp_upload_path = UPLOAD_DIR / f"{base_name}_{file.filename}"
         temp_output_path = OUTPUT_DIR / base_name
 
