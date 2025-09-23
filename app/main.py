@@ -35,8 +35,10 @@ app = FastAPI(
 
 # --- Helper Functions ---
 def sanitize_filename(name: str) -> str:
-    """Sanitize a string to be safe for use as a directory or file name."""
-    return re.sub(r"[^a-zA-Z0-9_\-\.]", "_", name)
+    """Sanitize a string to be safe for use as a directory or file name, allowing Unicode (including Hebrew) characters."""
+    # Allow Unicode letters, numbers, underscore, dash, and dot
+    # u0590-u05FFFF covers all Unicode code points
+    return re.sub(r"[^\w\-\.\u0590-\u05FF]", "_", name, flags=re.UNICODE)
 
 
 def cleanup_files(*paths):
