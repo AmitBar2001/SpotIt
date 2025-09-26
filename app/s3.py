@@ -1,5 +1,5 @@
+from fastapi import HTTPException
 import oci
-import sys
 import concurrent.futures
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -202,3 +202,40 @@ def upload_and_get_presigned_urls(
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
         raise S3UploadError(f"An unexpected error occurred: {e}")
+
+def list_directories(directory: str | None):
+    try:
+        logger.info(f"Listing directories or objects in bucket '{BUCKET_NAME}' for directory: {directory}")
+
+        if directory:
+            # List objects inside the specified directory
+            prefix = f"{directory}/"
+            response = object_storage_client.list_objects(
+                namespace_name=NAMESPACE_NAME,
+                bucket_name=BUCKET_NAME,
+                prefix=prefix,
+                fields="name",
+            )
+            objects = [obj.name for obj in response.data.objects]
+            logger.info(f"Found {len(objects)} objects in directory '{directory}'.")
+            return {"directory": directory, "objects": objects}
+        else:
+            # List all directories (prefixes)
+            response: oci.Response = object_storage_client.list_objects(
+                namespace_name=NAMESPACE_NAME,
+                bucket_name=BUCKET_NAME,
+                fields="name",
+            )
+            response_data: oci.object_storage.models.ListObjects = response.data
+            objects: list[oci.object_storage.models.ObjectSummary] = response_data.objects
+            directories = set(
+                obj.name.split("/")[0] for obj in objects if "/" in obj.name
+            )
+            logger.info(f"Found {len(directories)} directories in bucket '{BUCKET_NAME}'.")
+            return {"directories": list(directories)}
+    except oci.exceptions.ServiceError as e:
+        logger.error(f"OCI ServiceError: {e.code} - {e.message}")
+        raise HTTPException(status_code=500, detail=f"OCI ServiceError: {e.code} - {e.message}")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")

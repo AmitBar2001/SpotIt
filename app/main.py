@@ -9,6 +9,7 @@ import re
 from app.files import merge_stems_and_export, run_demucs_separation
 from app.s3 import upload_and_get_presigned_urls, S3UploadError, S3PresignedUrlError
 from app.logger import logger
+from app import s3
 
 # --- Configuration ---
 # Create directories for temporary file storage
@@ -90,6 +91,7 @@ def download_and_trim_youtube_audio(
         "cookiefile": COOKIES_FILE_PATH if os.path.exists(COOKIES_FILE_PATH) else None,
         "writesubtitles": False,
         "writeinfojson": True,  # Download info JSON
+        "keepvideo": True,
     }
 
     # Securely add proxy from environment variable if it exists
@@ -350,6 +352,14 @@ def separate_from_file(
         cleanup_files(temp_upload_path, temp_output_path)
         raise
 
+
+@app.get(
+    "/list-directories/",
+    summary="List Directories in Bucket",
+    description="Lists all directories in the mp3files bucket or objects inside a specific directory.",
+)
+def list_directories(directory: str | None = Query(None, description="The directory to list objects from. If not specified, lists all directories.")):
+    return s3.list_directories(directory)
 
 # --- yt-dlp Cookies Handling ---
 COOKIES_FILE_PATH = "yt_dlp_cookies.txt"
