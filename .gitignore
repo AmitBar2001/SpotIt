@@ -1,4 +1,6 @@
 venv
 test.mp3
 oci_private_key.pem
-test
+.env
+yt_dlp_cookies.txt
+__pycache__/

@@ -10,6 +10,7 @@ from app.files import merge_stems_and_export, run_demucs_separation
 from app.s3 import upload_and_get_presigned_urls, S3UploadError, S3PresignedUrlError
 from app.logger import logger
 from app import s3
+from app.config import settings
 
 # --- Configuration ---
 # Create directories for temporary file storage
@@ -88,16 +89,18 @@ def download_and_trim_youtube_audio(
         "logger": logger,
         "external_downloader": "aria2c",
         "postprocessor_args": ["-ar", "44100", "-ac", "2"],  # Ensure 44.1kHz, stereo
-        "cookiefile": COOKIES_FILE_PATH if os.path.exists(COOKIES_FILE_PATH) else None,
+        "cookiefile": (
+            settings.yt_dlp_cookies_file_path
+            if os.path.exists(settings.yt_dlp_cookies_file_path)
+            else None
+        ),
         "writesubtitles": False,
         "writeinfojson": True,  # Download info JSON
-        "keepvideo": True,
+        "keepvideo": False,
     }
 
-    # Securely add proxy from environment variable if it exists
-    proxy_url = os.environ.get("YT_DLP_PROXY")
-    if proxy_url:
-        ydl_opts["proxy"] = proxy_url
+    if settings.yt_dlp_proxy is not None:
+        ydl_opts["proxy"] = settings.yt_dlp_proxy
         logger.info("Using proxy for yt-dlp.")
 
     try:
@@ -267,13 +270,13 @@ def separate_from_youtube(
             logger.error(
                 f"Object storage upload or presigned URL generation failed: {e}"
             )
-            cleanup_files(trimmed_audio_path, temp_output_path)
+            cleanup_files(trimmed_audio_path, temp_output_path, trimmed_audio_path.replace(".wav", ".info.json"))
             raise HTTPException(status_code=500, detail=f"Object storage error: {e}")
 
         # Cleanup in background
         if background_tasks is not None:
             background_tasks.add_task(
-                cleanup_files, trimmed_audio_path, temp_output_path
+                cleanup_files, trimmed_audio_path, temp_output_path, trimmed_audio_path.replace(".wav", ".info.json")
             )
             logger.info(
                 f"Scheduled cleanup for: {trimmed_audio_path}, {temp_output_path}"
@@ -282,7 +285,7 @@ def separate_from_youtube(
         return {"urls": urls}
     except Exception as e:
         logger.error(f"Error processing YouTube URL {request.url}: {e}")
-        cleanup_files(trimmed_audio_path, temp_output_path)
+        cleanup_files(trimmed_audio_path, temp_output_path, trimmed_audio_path.replace(".wav", ".info.json"))
         raise
 
 
@@ -358,22 +361,10 @@ def separate_from_file(
     summary="List Directories in Bucket",
     description="Lists all directories in the mp3files bucket or objects inside a specific directory.",
 )
-def list_directories(directory: str | None = Query(None, description="The directory to list objects from. If not specified, lists all directories.")):
+def list_directories(
+    directory: str | None = Query(
+        None,
+        description="The directory to list objects from. If not specified, lists all directories.",
+    )
+):
     return s3.list_directories(directory)
-
-# --- yt-dlp Cookies Handling ---
-COOKIES_FILE_PATH = "yt_dlp_cookies.txt"
-cookies_content = os.environ.get("YT_DLP_COOKIES")
-if cookies_content and not os.path.exists(COOKIES_FILE_PATH):
-    with open(COOKIES_FILE_PATH, "w") as f:
-        f.write(cookies_content)
-    logger.info(f"Wrote yt-dlp cookies to {COOKIES_FILE_PATH}")
-else:
-    if cookies_content:
-        logger.info(
-            f"YT_DLP_COOKIES environment variable found but {COOKIES_FILE_PATH} already exists; not overwriting."
-        )
-    else:
-        logger.info(
-            "No YT_DLP_COOKIES environment variable found; not writing cookies file."
-        )

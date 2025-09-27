@@ -1,9 +1,11 @@
-from fastapi import HTTPException
 import oci
+import os
 import concurrent.futures
+from fastapi import HTTPException
 from datetime import datetime, timedelta
 from pathlib import Path
 from app.logger import logger
+from app.config import settings
 
 
 # --- Custom Exceptions ---
@@ -15,10 +17,11 @@ class S3PresignedUrlError(Exception):
     pass
 
 
-NAMESPACE_NAME = "frjafxpufafn"
-BUCKET_NAME = "mp3files"
+NAMESPACE_NAME = settings.storage_namespace
+BUCKET_NAME = settings.storage_bucket_name
+CONFIG_FILE_PATH = Path(settings.oci_config_path)
 
-config = oci.config.from_file(file_location="~/app/.oci/config")
+config = oci.config.from_file(file_location=CONFIG_FILE_PATH)
 object_storage_client = oci.object_storage.ObjectStorageClient(config)
 
 
@@ -203,9 +206,12 @@ def upload_and_get_presigned_urls(
         logger.error(f"An unexpected error occurred: {e}")
         raise S3UploadError(f"An unexpected error occurred: {e}")
 
+
 def list_directories(directory: str | None):
     try:
-        logger.info(f"Listing directories or objects in bucket '{BUCKET_NAME}' for directory: {directory}")
+        logger.info(
+            f"Listing directories or objects in bucket '{BUCKET_NAME}' for directory: {directory}"
+        )
 
         if directory:
             # List objects inside the specified directory
@@ -227,15 +233,23 @@ def list_directories(directory: str | None):
                 fields="name",
             )
             response_data: oci.object_storage.models.ListObjects = response.data
-            objects: list[oci.object_storage.models.ObjectSummary] = response_data.objects
+            objects: list[oci.object_storage.models.ObjectSummary] = (
+                response_data.objects
+            )
             directories = set(
                 obj.name.split("/")[0] for obj in objects if "/" in obj.name
             )
-            logger.info(f"Found {len(directories)} directories in bucket '{BUCKET_NAME}'.")
+            logger.info(
+                f"Found {len(directories)} directories in bucket '{BUCKET_NAME}'."
+            )
             return {"directories": list(directories)}
     except oci.exceptions.ServiceError as e:
         logger.error(f"OCI ServiceError: {e.code} - {e.message}")
-        raise HTTPException(status_code=500, detail=f"OCI ServiceError: {e.code} - {e.message}")
+        raise HTTPException(
+            status_code=500, detail=f"OCI ServiceError: {e.code} - {e.message}"
+        )
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"An unexpected error occurred: {e}"
+        )
