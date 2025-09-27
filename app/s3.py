@@ -32,7 +32,8 @@ def _upload_and_create_presigned_url(
     local_file_path: str,
     object_name: str,
     url_expiration_hours: int,
-) -> str:
+    as_zip: bool = False,
+) -> str | None:
     """
     Helper function to upload a single file and create a presigned URL.
     This function will be executed in a separate thread.
@@ -67,6 +68,12 @@ def _upload_and_create_presigned_url(
         raise S3UploadError(
             f"Exception during upload of '{local_file_path}' to bucket '{bucket_name}': {e}"
         )
+
+    if as_zip:
+        logger.info(
+            f"Skipping presigned URL creation for '{object_name}' as zip is requested."
+        )
+        return None
 
     logger.info(f"Creating pre-authenticated request for '{object_name}'...")
     try:
@@ -119,6 +126,7 @@ def upload_and_get_presigned_urls(
     bucket_name: str = BUCKET_NAME,
     url_expiration_hours: int = 1,
     max_workers: int = 5,
+    as_zip: bool = False,
 ) -> list[str]:
     """
     Uploads all files from a local directory to an OCI Object Storage bucket
@@ -173,6 +181,7 @@ def upload_and_get_presigned_urls(
                         str(file_path),
                         object_name,
                         url_expiration_hours,
+                        as_zip,
                     )
                 )
 
@@ -253,3 +262,16 @@ def list_directories(directory: str | None):
         raise HTTPException(
             status_code=500, detail=f"An unexpected error occurred: {e}"
         )
+
+
+# def get_zip_from_presigned_urls(presigned_urls: list[str], download_path: Path) -> Path:
+#     """
+#     Downloads files from the provided presigned URLs and creates a ZIP archive.
+
+#     Args:
+#         presigned_urls (list[str]): List of presigned URLs to download files from.
+#         download_path (Path): The local path where the ZIP file will be saved.
+
+#     Returns:
+#     """
+#     object_storage_client.d

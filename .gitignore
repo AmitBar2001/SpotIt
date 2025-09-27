@@ -4,3 +4,4 @@ oci_private_key.pem
 .env
 yt_dlp_cookies.txt
 __pycache__/
+.cache

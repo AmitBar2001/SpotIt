@@ -2,3 +2,4 @@ oci_private_key.pem
 venv/
 .env
 yt_dlp_cookies.txt
+.cache

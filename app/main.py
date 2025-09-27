@@ -3,6 +3,7 @@ import subprocess
 import os
 from pathlib import Path
 from fastapi import FastAPI, File, UploadFile, HTTPException, Query, BackgroundTasks
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, HttpUrl
 import yt_dlp
 import re
@@ -11,6 +12,8 @@ from app.s3 import upload_and_get_presigned_urls, S3UploadError, S3PresignedUrlE
 from app.logger import logger
 from app import s3
 from app.config import settings
+from app.spotify import get_random_track_from_playlist
+import uuid
 
 # --- Configuration ---
 # Create directories for temporary file storage
@@ -72,12 +75,23 @@ def print_directory_tree(root_dir: Path):
 
 
 def download_and_trim_youtube_audio(
-    url: str, start_time: int | None, duration: int, download_path: Path
+    url: str,
+    start_time: int | None,
+    duration: int,
+    download_path: Path,
+    search_term: str | None = None,
 ) -> Path:
     """Downloads audio from a YouTube URL and trims it using ffmpeg. If start_time is None, auto-pick using heatmap."""
-    logger.info(
-        f"Starting download_and_trim_youtube_audio for URL: {url}, start_time: {start_time}, duration: {duration}, download_path: {download_path}"
-    )
+    if search_term:
+        logger.info(
+            f"Starting download_and_trim_youtube_audio for search term: {search_term}, duration: {duration}, download_path: {download_path}"
+        )
+        youtube_url = f"ytsearch1: {search_term}"
+    else:
+        logger.info(
+            f"Starting download_and_trim_youtube_audio for URL: {url}, start_time: {start_time}, duration: {duration}, download_path: {download_path}"
+        )
+        youtube_url = url
 
     # Ensure the download directory exists
     download_path.mkdir(parents=True, exist_ok=True)
@@ -115,22 +129,24 @@ def download_and_trim_youtube_audio(
     try:
         logger.debug(f"yt_dlp options: {ydl_opts}")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            video_info_json = ydl.extract_info(url)
+            video_info_json = ydl.extract_info(youtube_url)
 
         if not video_info_json:
             logger.error("yt-dlp did not return video info.")
             raise Exception("yt-dlp did not return video info.")
 
+        if search_term:
+            video_info_json = video_info_json.get("entries")[0]
         requested_downloads = video_info_json.get("requested_downloads")
-        
+
         if requested_downloads is None or not isinstance(requested_downloads, list):
             logger.error("Could not find requested_downloads in yt-dlp info JSON.")
             raise Exception("Could not find requested_downloads in yt-dlp info JSON.")
-        
+
         original_audio_path = Path(requested_downloads[0]["filepath"]).resolve()
 
         logger.info(f"Downloaded audio to {original_audio_path}")
-        
+
         if settings.log_level == "DEBUG":
             print_directory_tree(download_path)
     except Exception as e:
@@ -169,7 +185,9 @@ def download_and_trim_youtube_audio(
     else:
         auto_start_time = start_time
 
-    trimmed_audio_path = (download_path / f"trimmed_{original_audio_path.stem}.wav").resolve()
+    trimmed_audio_path = (
+        download_path / f"trimmed_{original_audio_path.stem}.wav"
+    ).resolve()
 
     # TODO: check if replacing this with "--download-sections" in yt-dlp would work faster
     # Use ffmpeg to trim the audio
@@ -196,14 +214,16 @@ def download_and_trim_youtube_audio(
         )
         logger.info(f"Trimmed audio saved to {trimmed_audio_path}")
     except subprocess.CalledProcessError as e:
-        cleanup_files(original_audio_path)
+        cleanup_files(
+            original_audio_path, original_audio_path.with_suffix(".info.json")
+        )
         error_message = e.stderr.decode()
         logger.error(f"Failed to trim audio with ffmpeg: {error_message}")
         raise HTTPException(
             status_code=500, detail=f"Failed to trim audio with ffmpeg: {error_message}"
         )
 
-    cleanup_files(original_audio_path)
+    cleanup_files(original_audio_path, original_audio_path.with_suffix(".info.json"))
 
     return trimmed_audio_path
 
@@ -234,18 +254,42 @@ def separate_from_youtube(
     duration: int = Query(
         30, gt=0, le=300, description="Duration of the audio clip in seconds (max 300)."
     ),
+    spotify_playlist: str | None = Query(
+        None, description="A Spotify playlist URL or ID to pick a random track from."
+    ),
+    as_zip: bool = Query(
+        False, description="Whether to return a zip instead of presigned URLs."
+    ),
     background_tasks: BackgroundTasks = None,
 ):
     trimmed_audio_path = None
     temp_output_path = None
     try:
         logger.info(
-            f"Received YouTube separation request: url={request.url}, start_time={start_time}, duration={duration}"
+            f"Received YouTube separation request: url={request.url}, start_time={start_time}, duration={duration} spotify_playlist={spotify_playlist}"
         )
+        search_term = None
+
+        if spotify_playlist:
+            logger.info(
+                f"Fetching random track from Spotify playlist: {spotify_playlist}"
+            )
+            try:
+                track = get_random_track_from_playlist(spotify_playlist)
+                track_name = track["name"]
+                track_artist = track["artists"][0]["name"]
+                logger.info(f"Selected track: {track_name} by {track_artist}")
+                search_term = f"{track_artist} - {track_name}"
+                logger.info(f"Using search term for YouTube: {search_term}")
+            except Exception as e:
+                logger.error(f"Failed to fetch track from Spotify: {e}")
+                raise HTTPException(
+                    status_code=500, detail=f"Failed to fetch track from Spotify: {e}"
+                )
 
         # Download and trim audio
         trimmed_audio_path = download_and_trim_youtube_audio(
-            str(request.url), start_time, duration, DOWNLOAD_DIR
+            str(request.url), start_time, duration, DOWNLOAD_DIR, search_term
         )
         # The original audio file is named after the video title, so get the title from the trimmed file name
         if trimmed_audio_path.stem.startswith("trimmed_"):
@@ -275,7 +319,7 @@ def separate_from_youtube(
             f"Uploading merged mp3s to object storage from {temp_output_path}..."
         )
         try:
-            urls = upload_and_get_presigned_urls(temp_output_path)
+            urls = upload_and_get_presigned_urls(temp_output_path, as_zip=not as_zip)
             logger.info(f"Uploaded mp3s to object storage. Presigned URLs: {urls}")
         except (S3UploadError, S3PresignedUrlError) as e:
             logger.error(
@@ -291,6 +335,20 @@ def separate_from_youtube(
             )
             logger.info(
                 f"Scheduled cleanup for: {trimmed_audio_path}, {temp_output_path}"
+            )
+
+        if as_zip:
+            random_zip_name = uuid.uuid4().hex
+            zip_path = temp_output_path.parent / f"{random_zip_name}.zip"
+            shutil.make_archive(
+                str(temp_output_path.parent / random_zip_name), "zip", temp_output_path
+            )
+            logger.info(f"Created zip archive at {zip_path}")
+            if background_tasks is not None:
+                background_tasks.add_task(cleanup_files, zip_path)
+            logger.info(f"Scheduled cleanup for zip file: {zip_path}")
+            return FileResponse(
+                zip_path, media_type="application/zip", filename=zip_path.name
             )
 
         return {"urls": urls}
