@@ -62,6 +62,12 @@ def cleanup_files(*paths):
             logger.error(f"Error cleaning up {path}: {e}")
 
 
+def print_directory_tree(root_dir: Path):
+    logger.info(f"Directory tree for {root_dir}:")
+    for path in root_dir.rglob("*"):
+        logger.info(f"  {path.resolve()}")
+
+
 # --- Business Logic Functions ---
 
 
@@ -122,8 +128,11 @@ def download_and_trim_youtube_audio(
             logger.error("Could not extract video title from yt-dlp info.")
             raise Exception("Could not extract video title from yt-dlp info.")
 
-        original_audio_path = download_path / f"{title}.wav"
+        original_audio_path = (download_path / f"{title}.wav").resolve()
         logger.info(f"Downloaded audio to {original_audio_path}")
+        
+        if settings.log_level == "DEBUG":
+            print_directory_tree(download_path)
     except Exception as e:
         logger.error(f"Failed to download audio from YouTube: {e}")
         raise HTTPException(
@@ -160,7 +169,7 @@ def download_and_trim_youtube_audio(
     else:
         auto_start_time = start_time
 
-    trimmed_audio_path = download_path / f"trimmed_{original_audio_path.stem}.wav"
+    trimmed_audio_path = (download_path / f"trimmed_{original_audio_path.stem}.wav").resolve()
 
     # TODO: check if replacing this with "--download-sections" in yt-dlp would work faster
     # Use ffmpeg to trim the audio
@@ -187,19 +196,18 @@ def download_and_trim_youtube_audio(
         )
         logger.info(f"Trimmed audio saved to {trimmed_audio_path}")
     except subprocess.CalledProcessError as e:
-        cleanup_files(
-            original_audio_path, original_audio_path.replace(".wav", ".info.json")
-        )
+        # Delete info.json file if it exists
+        info_json_path = original_audio_path.with_suffix(".info.json")
+        cleanup_files(original_audio_path, info_json_path)
         error_message = e.stderr.decode()
         logger.error(f"Failed to trim audio with ffmpeg: {error_message}")
         raise HTTPException(
             status_code=500, detail=f"Failed to trim audio with ffmpeg: {error_message}"
         )
 
-    # Clean up the original full download
-    cleanup_files(
-        original_audio_path, original_audio_path.replace(".wav", ".info.json")
-    )
+    # Clean up the original full download and info.json
+    info_json_path = original_audio_path.with_suffix(".info.json")
+    cleanup_files(original_audio_path, info_json_path)
 
     return trimmed_audio_path
 
