@@ -115,20 +115,20 @@ def download_and_trim_youtube_audio(
     try:
         logger.debug(f"yt_dlp options: {ydl_opts}")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            video_info_json = ydl.extract_info(url, download=True)
+            video_info_json = ydl.extract_info(url)
 
         if not video_info_json:
             logger.error("yt-dlp did not return video info.")
             raise Exception("yt-dlp did not return video info.")
 
-        # Find the downloaded file path
-        title = video_info_json.get("title")
+        requested_downloads = video_info_json.get("requested_downloads")
+        
+        if requested_downloads is None or not isinstance(requested_downloads, list):
+            logger.error("Could not find requested_downloads in yt-dlp info JSON.")
+            raise Exception("Could not find requested_downloads in yt-dlp info JSON.")
+        
+        original_audio_path = Path(requested_downloads[0]["filepath"]).resolve()
 
-        if not title:
-            logger.error("Could not extract video title from yt-dlp info.")
-            raise Exception("Could not extract video title from yt-dlp info.")
-
-        original_audio_path = (download_path / f"{title}.wav").resolve()
         logger.info(f"Downloaded audio to {original_audio_path}")
         
         if settings.log_level == "DEBUG":
@@ -196,18 +196,14 @@ def download_and_trim_youtube_audio(
         )
         logger.info(f"Trimmed audio saved to {trimmed_audio_path}")
     except subprocess.CalledProcessError as e:
-        # Delete info.json file if it exists
-        info_json_path = original_audio_path.with_suffix(".info.json")
-        cleanup_files(original_audio_path, info_json_path)
+        cleanup_files(original_audio_path)
         error_message = e.stderr.decode()
         logger.error(f"Failed to trim audio with ffmpeg: {error_message}")
         raise HTTPException(
             status_code=500, detail=f"Failed to trim audio with ffmpeg: {error_message}"
         )
 
-    # Clean up the original full download and info.json
-    info_json_path = original_audio_path.with_suffix(".info.json")
-    cleanup_files(original_audio_path, info_json_path)
+    cleanup_files(original_audio_path)
 
     return trimmed_audio_path
 
