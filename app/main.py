@@ -73,6 +73,9 @@ def download_and_trim_youtube_audio(
         f"Starting download_and_trim_youtube_audio for URL: {url}, start_time: {start_time}, duration: {duration}, download_path: {download_path}"
     )
 
+    # Ensure the download directory exists
+    download_path.mkdir(parents=True, exist_ok=True)
+
     # Use yt-dlp template to get video title as filename (safe)
     # We'll use download_path as the directory, and let yt-dlp set the filename
     outtmpl = str(download_path / "%(title)s.%(ext)s")
@@ -184,7 +187,9 @@ def download_and_trim_youtube_audio(
         )
         logger.info(f"Trimmed audio saved to {trimmed_audio_path}")
     except subprocess.CalledProcessError as e:
-        cleanup_files(original_audio_path)
+        cleanup_files(
+            original_audio_path, original_audio_path.replace(".wav", ".info.json")
+        )
         error_message = e.stderr.decode()
         logger.error(f"Failed to trim audio with ffmpeg: {error_message}")
         raise HTTPException(
@@ -192,7 +197,9 @@ def download_and_trim_youtube_audio(
         )
 
     # Clean up the original full download
-    cleanup_files(original_audio_path)
+    cleanup_files(
+        original_audio_path, original_audio_path.replace(".wav", ".info.json")
+    )
 
     return trimmed_audio_path
 
@@ -270,13 +277,13 @@ def separate_from_youtube(
             logger.error(
                 f"Object storage upload or presigned URL generation failed: {e}"
             )
-            cleanup_files(trimmed_audio_path, temp_output_path, trimmed_audio_path.replace(".wav", ".info.json"))
+            cleanup_files(trimmed_audio_path, temp_output_path)
             raise HTTPException(status_code=500, detail=f"Object storage error: {e}")
 
         # Cleanup in background
         if background_tasks is not None:
             background_tasks.add_task(
-                cleanup_files, trimmed_audio_path, temp_output_path, trimmed_audio_path.replace(".wav", ".info.json")
+                cleanup_files, trimmed_audio_path, temp_output_path
             )
             logger.info(
                 f"Scheduled cleanup for: {trimmed_audio_path}, {temp_output_path}"
@@ -285,7 +292,7 @@ def separate_from_youtube(
         return {"urls": urls}
     except Exception as e:
         logger.error(f"Error processing YouTube URL {request.url}: {e}")
-        cleanup_files(trimmed_audio_path, temp_output_path, trimmed_audio_path.replace(".wav", ".info.json"))
+        cleanup_files(trimmed_audio_path, temp_output_path)
         raise
 
 
