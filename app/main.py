@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, UploadFile, HTTPException, Query, BackgroundTasks
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, HttpUrl
+from fastapi.middleware.cors import CORSMiddleware
 import yt_dlp
 import re
 from app.files import merge_stems_and_export, run_demucs_separation
@@ -35,6 +36,15 @@ app = FastAPI(
     title="Demucs Audio Separator",
     description="An API to separate audio files into their instrumental stems (drums, bass, vocals, other) using the Demucs model. Can process direct file uploads or audio from YouTube links.",
     version="1.1.0",
+)
+
+# Add CORS middleware to allow all origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

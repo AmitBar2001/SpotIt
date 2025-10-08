@@ -5,12 +5,8 @@ interface GenerateStemsResponse {
 }
 
 const generateStemsFromSpotify = async (spotifyUrl: string): Promise<GenerateStemsResponse> => {
-  const response = await fetch(`${BASE_URL}/separate-from-spotify`, {
+  const response = await fetch(`${BASE_URL}/separate-from-youtube?spotify_playlist=${encodeURIComponent(spotifyUrl)}`, {
     method: "POST",
-    body: JSON.stringify({ url: spotifyUrl }),
-    headers: {
-      "Content-Type": "application/json",
-    },
   });
   if (!response.ok) {
     throw new Error("Failed to generate stems from Spotify URL");
