@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://amitbar2001-spotit.hf.space";
 
 interface GenerateStemsResponse {
     urls: string[];
@@ -39,5 +39,15 @@ export const generateStems = async (url: string): Promise<GenerateStemsResponse>
     return generateStemsFromYoutube(url);
   } else {
     throw new Error("Invalid URL. Please provide a Spotify or YouTube URL.");
+  }
+};
+
+export const triggerColdBoot = async (): Promise<void> => {
+  try {
+    // We don't need to do anything with the response, just make the request.
+    await fetch(`${BASE_URL}`, { method: "GET" });
+    console.log("Cold boot triggered.");
+  } catch (error) {
+    console.error("Failed to trigger cold boot:", error);
   }
 };

@@ -10,10 +10,16 @@ const FormSchema = z.object({
   url: z.string().url(),
 });
 
-import { generateStems } from "@/api";
+import { useEffect } from "react";
+import { generateStems, triggerColdBoot } from "@/api";
 
+// ...
 
 function App() {
+  useEffect(() => {
+    triggerColdBoot();
+  }, []);
+
   const { mutate, isPending, data, error } = useMutation({
     mutationFn: (data: z.infer<typeof FormSchema>) => generateStems(data.url),
   });

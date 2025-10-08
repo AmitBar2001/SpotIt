@@ -8,7 +8,7 @@ dotenv.config();
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: "/SpotIt/",,
+  base: "/SpotIt/",
   plugins: [
     react({
       babel: {
