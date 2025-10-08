@@ -48,6 +48,10 @@ def sanitize_filename(name: str) -> str:
 
 def cleanup_files(*paths):
     """Removes files and directories to free up space after processing."""
+    if settings.environment == "development":
+        logger.info("not cleaning up files in development mode")
+        return
+    
     for path in paths:
         try:
             if path is None:
@@ -319,7 +323,7 @@ def separate_from_youtube(
             f"Uploading merged mp3s to object storage from {temp_output_path}..."
         )
         try:
-            urls = upload_and_get_presigned_urls(temp_output_path, as_zip=not as_zip)
+            urls = upload_and_get_presigned_urls(temp_output_path, as_zip=as_zip)
             logger.info(f"Uploaded mp3s to object storage. Presigned URLs: {urls}")
         except (S3UploadError, S3PresignedUrlError) as e:
             logger.error(
