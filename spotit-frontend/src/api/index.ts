@@ -44,7 +44,8 @@ export const generateStems = async (url: string): Promise<GenerateStemsResponse>
   }
 
   const first = response.urls.find((url) => url.includes("drums.mp3"));
-  return {urls: first ? [first, ...response.urls.filter(url => !url.includes("drums.mp3")).sort()] : response.urls.sort()};
+  const last = response.urls.find((url) => url.includes("original_trimmed.mp3"));
+  return {urls: (first && last) ? [first, ...response.urls.filter(url => !url.includes("drums.mp3") && !url.includes("original_trimmed.mp3")).sort(), last] : response.urls.sort()};
 };
 
 export const triggerColdBoot = async (): Promise<void> => {

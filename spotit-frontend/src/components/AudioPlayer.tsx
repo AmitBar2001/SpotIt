@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Music } from "lucide-react";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 export function AudioPlayer({ urls }: { urls: string[] }) {
   const getTrackName = (url: string) => {
@@ -10,10 +10,16 @@ export function AudioPlayer({ urls }: { urls: string[] }) {
   };
 
   // Custom audio player with slider
-  const AudioWithSlider = ({ url }: { url: string }) => {
+  const AudioWithSlider = ({ url, initialVolume = 1 }: { url: string, initialVolume: number; }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = initialVolume;
+    }
+  }, [initialVolume]); // Re-run effect if initialVolume changes
 
     const handleTimeUpdate = () => {
       if (audioRef.current) {
@@ -39,7 +45,7 @@ export function AudioPlayer({ urls }: { urls: string[] }) {
       <div className="w-full flex flex-col items-center">
         <audio
           ref={audioRef}
-          controls
+          controls={false}
           src={url}
           className="w-full h-12"
           onTimeUpdate={handleTimeUpdate}
@@ -68,13 +74,13 @@ export function AudioPlayer({ urls }: { urls: string[] }) {
       </CardHeader>
       <CardContent>
         <div className="space-y-8">
-          {urls.map((url) => (
+          {urls.map((url, index) => (
             <div key={url} className="flex flex-col items-start space-y-2">
               <div className="flex items-center space-x-4">
                 <Music className="h-6 w-6 text-primary" />
                 <p className="capitalize font-semibold">{getTrackName(url)}</p>
               </div>
-              <AudioWithSlider url={url} />
+              <AudioWithSlider url={url} initialVolume={index == urls.length - 1 ? 0.8: 1}/>
             </div>
           ))}
         </div>
