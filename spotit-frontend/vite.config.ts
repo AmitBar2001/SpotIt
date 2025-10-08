@@ -1,5 +1,5 @@
 import path from "path";
-import { defineConfig, Plugin } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import dotenv from "dotenv";
@@ -8,7 +8,7 @@ dotenv.config();
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: "/spotit-frontend/",
+  base: "/SpotIt/",,
   plugins: [
     react({
       babel: {

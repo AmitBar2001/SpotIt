@@ -33,7 +33,7 @@ function App() {
           <URLInputForm onSubmit={onSubmit} isLoading={isPending} />
           {isPending && <p>Loading...</p>}
           {error && <p className="text-red-500">{error.message}</p>}
-          {data && <AudioPlayer urls={data} />}
+          {data && <AudioPlayer urls={data.urls} />}
         </div>
       </div>
     </div>
