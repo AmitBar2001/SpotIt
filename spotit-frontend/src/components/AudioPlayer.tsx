@@ -45,7 +45,7 @@ export function AudioPlayer({ urls }: { urls: string[] }) {
       <div className="w-full flex flex-col items-center">
         <audio
           ref={audioRef}
-          controls={false}
+          controls={true}
           src={url}
           className="w-full h-12"
           onTimeUpdate={handleTimeUpdate}

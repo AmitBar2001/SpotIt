@@ -134,6 +134,7 @@ def download_and_trim_youtube_audio(
         "writesubtitles": False,
         "writeinfojson": True,  # Download info JSON
         "keepvideo": False,
+        "extractor_args": {"youtube": {"player_client": ['default'], "player_js_version": ['actual']}}
     }
 
     if settings.yt_dlp_proxy is not None:

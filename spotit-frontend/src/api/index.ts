@@ -1,24 +1,34 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://amitbar2001-spotit.hf.space";
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "https://amitbar2001-spotit.hf.space";
 
 interface GenerateStemsResponse {
-    urls: string[];
+  urls: string[];
 }
 
-const generateStemsFromSpotify = async (spotifyUrl: string): Promise<GenerateStemsResponse> => {
-  const response = await fetch(`${BASE_URL}/separate-from-youtube/?spotify_playlist=${encodeURIComponent(spotifyUrl)}`, {
-    method: "POST",
-    body: JSON.stringify({ url: spotifyUrl }),
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+const generateStemsFromSpotify = async (
+  spotifyUrl: string
+): Promise<GenerateStemsResponse> => {
+  const response = await fetch(
+    `${BASE_URL}/separate-from-youtube/?spotify_playlist=${encodeURIComponent(
+      spotifyUrl
+    )}`,
+    {
+      method: "POST",
+      body: JSON.stringify({ url: spotifyUrl }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
   if (!response.ok) {
     throw new Error("Failed to generate stems from Spotify URL");
   }
-    return response.json();
+  return response.json();
 };
 
-const generateStemsFromYoutube = async (youtubeUrl: string): Promise<GenerateStemsResponse> => {
+const generateStemsFromYoutube = async (
+  youtubeUrl: string
+): Promise<GenerateStemsResponse> => {
   const response = await fetch(`${BASE_URL}/separate-from-youtube/`, {
     method: "POST",
     body: JSON.stringify({ url: youtubeUrl }),
@@ -29,12 +39,14 @@ const generateStemsFromYoutube = async (youtubeUrl: string): Promise<GenerateSte
   if (!response.ok) {
     throw new Error("Failed to generate stems from YouTube URL");
   }
-    return response.json();
+  return response.json();
 };
 
-export const generateStems = async (url: string): Promise<GenerateStemsResponse> => {
+export const generateStems = async (
+  url: string
+): Promise<GenerateStemsResponse> => {
   let response: GenerateStemsResponse;
-  
+
   if (url.includes("spotify.com")) {
     response = await generateStemsFromSpotify(url);
   } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
@@ -43,9 +55,11 @@ export const generateStems = async (url: string): Promise<GenerateStemsResponse>
     throw new Error("Invalid URL. Please provide a Spotify or YouTube URL.");
   }
 
-  const first = response.urls.find((url) => url.includes("drums.mp3"));
-  const last = response.urls.find((url) => url.includes("original_trimmed.mp3"));
-  return {urls: (first && last) ? [first, ...response.urls.filter(url => !url.includes("drums.mp3") && !url.includes("original_trimmed.mp3")).sort(), last] : response.urls.sort()};
+  return {
+    urls: response.urls.sort((a, b) =>
+      a.split("/").pop()!.localeCompare(b.split("/").pop()!)
+    ),
+  };
 };
 
 export const triggerColdBoot = async (): Promise<void> => {
