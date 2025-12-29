@@ -5,6 +5,7 @@ from pathlib import Path
 from app.logger import logger
 from app.config import settings
 from typing import Dict, Tuple
+from urllib.parse import quote
 
 
 # --- Custom Exceptions ---
@@ -18,8 +19,6 @@ CONFIG_FILE_PATH = Path(settings.oci_config_path)
 
 config = oci.config.from_file(file_location=CONFIG_FILE_PATH)
 object_storage_client = oci.object_storage.ObjectStorageClient(config)
-
-
 def _upload_and_get_public_url(
     client: oci.object_storage.ObjectStorageClient,
     namespace: str,
@@ -64,8 +63,24 @@ def _upload_and_get_public_url(
 
     logger.info(f"Constructing public URL for '{object_name}'...")
     try:
-        region = client.base_client.config["region"]
-        public_url = f"https://{namespace}.objectstorage.{region}.oraclecloud.com/n/{namespace}/b/{bucket_name}/o/{object_name}"
+        # Prefer tenancy-specific endpoint (console's new URL format) when the
+        # SDK endpoint is the generic one. Construct a tenant-specific host
+        # like: https://{namespace}.objectstorage.{region}.oci.customer-oci.com
+        region = client.base_client.config.get("region")
+        sdk_endpoint = client.base_client.endpoint.rstrip("/")
+
+        tenant_endpoint = f"https://{namespace}.objectstorage.{region}.oci.customer-oci.com"
+
+        # If the SDK endpoint looks like the old generic endpoint, switch to
+        # the tenancy-specific host; otherwise keep the SDK endpoint (it may
+        # already be tenancy-specific or customized).
+        if sdk_endpoint.endswith(f"objectstorage.{region}.oraclecloud.com"):
+            base_endpoint = tenant_endpoint
+        else:
+            base_endpoint = sdk_endpoint
+
+        quoted_object = quote(object_name, safe="")
+        public_url = f"{base_endpoint}/n/{namespace}/b/{bucket_name}/o/{quoted_object}"
 
         logger.info(f"Constructed public URL for '{object_name}': {public_url}")
 

@@ -1,14 +1,23 @@
+import { NuqsAdapter } from "nuqs/adapters/react-router/v6";
+import { BrowserRouter } from "react-router-dom";
 import { URLInputForm } from "@/components/URLInputForm";
 import { AudioPlayer } from "@/components/AudioPlayer";
-import { ConvexProvider, ConvexReactClient, useMutation, useQuery } from "convex/react";
+import {
+  ConvexProvider,
+  ConvexReactClient,
+  useMutation,
+  useQuery,
+} from "convex/react";
 import * as z from "zod";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { api } from "../convex/_generated/api";
-import { Id } from "../convex/_generated/dataModel";
+import type { Id } from "../convex/_generated/dataModel.d.ts";
 import { triggerColdBoot } from "@/api";
+import { useQueryState } from "nuqs";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const FormSchema = z.object({
   url: z.string().url(),
 });
@@ -17,29 +26,34 @@ function App() {
   useEffect(() => {
     triggerColdBoot();
   }, []);
+  const [taskId, setTaskId] = useQueryState("tid");
 
-  const [taskId, setTaskId] = useState<Id<"tasks"> | null>(null);
-  
   const createTask = useMutation(api.tasks.createTask);
-  const task = useQuery(api.tasks.getTask, taskId ? { taskId } : "skip");
+  const task = useQuery(
+    api.tasks.getTask,
+    taskId ? { taskId: taskId as Id<"tasks"> } : "skip"
+  );
 
   const onSubmit = async (data: z.infer<typeof FormSchema>) => {
     try {
-        const newTaskId = await createTask({ songUrl: data.url });
-        setTaskId(newTaskId);
+      const newTaskId = await createTask({ songUrl: data.url });
+      setTaskId(newTaskId);
     } catch (e) {
-        console.error("Failed to create task", e);
+      console.error("Failed to create task", e);
     }
   };
 
-  const isLoading = taskId !== null && (task === undefined || task?.status === "pending" || task?.status === "in_progress");
+  const isLoading =
+    taskId !== null &&
+    (task === undefined ||
+      task?.status === "pending" ||
+      task?.status === "in_progress");
   const error = task?.status === "failed" ? task.message : null;
-  
+
   let urls: string[] = [];
   if (task?.song?.stemsUrls) {
-      const s = task.song.stemsUrls;
-      // Order: vocals, drums, bass, other, original
-      urls = [s.vocals, s.drums, s.bass, s.other, s.original];
+    const s = task.song.stemsUrls;
+    urls = [s.drums, s.bass, s.guitar, s.other, s.original];
   }
 
   return (
@@ -64,8 +78,12 @@ function App() {
 
 export default function WrappedApp() {
   return (
-    <ConvexProvider client={convex}>
-        <App />
-    </ConvexProvider>
+    <NuqsAdapter>
+      <BrowserRouter>
+        <ConvexProvider client={convex}>
+          <App />
+        </ConvexProvider>
+      </BrowserRouter>
+    </NuqsAdapter>
   );
 }
