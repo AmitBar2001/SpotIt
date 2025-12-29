@@ -1,19 +1,14 @@
 import oci
-import os
 import concurrent.futures
 from fastapi import HTTPException
-from datetime import datetime, timedelta
 from pathlib import Path
 from app.logger import logger
 from app.config import settings
+from typing import Dict, Tuple
 
 
 # --- Custom Exceptions ---
 class S3UploadError(Exception):
-    pass
-
-
-class S3PresignedUrlError(Exception):
     pass
 
 
@@ -25,17 +20,15 @@ config = oci.config.from_file(file_location=CONFIG_FILE_PATH)
 object_storage_client = oci.object_storage.ObjectStorageClient(config)
 
 
-def _upload_and_create_presigned_url(
+def _upload_and_get_public_url(
     client: oci.object_storage.ObjectStorageClient,
     namespace: str,
     bucket_name: str,
     local_file_path: str,
     object_name: str,
-    url_expiration_hours: int,
-    as_zip: bool = False,
-) -> str | None:
+) -> Tuple[str, str]:
     """
-    Helper function to upload a single file and create a presigned URL.
+    Helper function to upload a single file and construct its public URL.
     This function will be executed in a separate thread.
     """
     logger.info(
@@ -69,131 +62,89 @@ def _upload_and_create_presigned_url(
             f"Exception during upload of '{local_file_path}' to bucket '{bucket_name}': {e}"
         )
 
-    if as_zip:
-        logger.info(
-            f"Skipping presigned URL creation for '{object_name}' as zip is requested."
-        )
-        return None
-
-    logger.info(f"Creating pre-authenticated request for '{object_name}'...")
+    logger.info(f"Constructing public URL for '{object_name}'...")
     try:
-        expiration_time = datetime.utcnow() + timedelta(hours=url_expiration_hours)
-        presigned_request_details = oci.object_storage.models.CreatePreauthenticatedRequestDetails(
-            access_type=oci.object_storage.models.CreatePreauthenticatedRequestDetails.ACCESS_TYPE_OBJECT_READ,
-            name=f"presigned-access-{object_name}",
-            time_expires=expiration_time,
-            object_name=object_name,
-        )
-        logger.debug(f"Calling create_preauthenticated_request for '{object_name}'.")
-        presigned_request_response: oci.Response = (
-            client.create_preauthenticated_request(
-                namespace_name=namespace,
-                bucket_name=bucket_name,
-                create_preauthenticated_request_details=presigned_request_details,
-            )
-        )
-        logger.debug(
-            f"create_preauthenticated_request response status: {presigned_request_response.status}"
-        )
-        if presigned_request_response.status not in (200, 201):
-            logger.error(
-                f"Failed to create pre-authenticated request for '{object_name}': status={presigned_request_response.status}"
-            )
-            raise S3PresignedUrlError(
-                f"Failed to create pre-authenticated request for '{object_name}': status={presigned_request_response.status}"
-            )
-        presigned_request: oci.object_storage.models.PreauthenticatedRequest = (
-            presigned_request_response.data
-        )
-        logger.info(f"Created pre-authenticated request for '{object_name}'.")
+        region = client.base_client.config["region"]
+        public_url = f"https://{namespace}.objectstorage.{region}.oraclecloud.com/n/{namespace}/b/{bucket_name}/o/{object_name}"
+
+        logger.info(f"Constructed public URL for '{object_name}': {public_url}")
+
+        file_name = Path(local_file_path).name
+        return file_name, public_url
+
     except Exception as e:
         logger.error(
-            f"Exception during pre-authenticated request creation for '{object_name}': {e}"
+            f"Exception during public URL construction for '{object_name}': {e}"
         )
-        raise S3PresignedUrlError(
-            f"Exception during pre-authenticated request creation for '{object_name}': {e}"
+        raise S3UploadError(
+            f"Exception during public URL construction for '{object_name}': {e}"
         )
-
-    logger.info(
-        f"Generated presigned URL for '{object_name}': {presigned_request.full_path}"
-    )
-    return presigned_request.full_path
 
 
 def upload_and_get_presigned_urls(
-    directory_path: Path,
+    file_paths: list[Path],
+    upload_folder: str,
     namespace: str = NAMESPACE_NAME,
     bucket_name: str = BUCKET_NAME,
-    url_expiration_hours: int = 1,
     max_workers: int = 5,
-    as_zip: bool = False,
-) -> list[str]:
+) -> Dict[str, str]:
     """
-    Uploads all files from a local directory to an OCI Object Storage bucket
-    and generates a presigned URL for each of them in parallel.
+    Uploads specific files to an OCI Object Storage bucket
+    and generates a public URL for each of them in parallel.
 
     Args:
+        file_paths (list[Path]): List of local paths to the files to upload.
+        upload_folder (str): The folder name in the bucket where files will be stored.
         namespace (str): The object storage namespace.
         bucket_name (str): The name of the bucket.
-        directory_path (Path): The local path to the directory containing the files.
-        url_expiration_hours (int): The number of hours for the presigned URL to be valid.
         max_workers (int): The number of worker threads to use for parallel uploads.
 
     Returns:
-        list[str]: A list of presigned URLs for the uploaded files. Returns
-                   an empty list if an error occurs.
+        Dict[str, str]: A dictionary of file names and their public URLs for the uploaded files.
+                        Returns an empty dict if an error occurs.
     """
-    presigned_urls = []
+    public_urls = {}
 
     try:
-        logger.info(f"Listing files in directory '{directory_path}' for upload.")
-        file_paths_to_upload = [
-            file_path for file_path in directory_path.iterdir() if file_path.is_file()
-        ]
+        if not file_paths:
+            logger.info("No files provided for upload.")
+            return {}
 
-        if not file_paths_to_upload:
-            logger.info("The specified directory is empty. No files to upload.")
-            raise S3UploadError(
-                f"The specified directory '{directory_path}' is empty. No files to upload."
-            )
-
-        # Use the directory's name as the upload folder in the bucket
-        upload_folder = directory_path.name
         logger.info(
-            f"Uploading {len(file_paths_to_upload)} files to bucket '{bucket_name}' in folder '{upload_folder}'..."
+            f"Uploading {len(file_paths)} files to bucket '{bucket_name}' in folder '{upload_folder}'..."
         )
         logger.info(f"Using a thread pool with {max_workers} workers.")
 
         # Use ThreadPoolExecutor to perform uploads and URL generation in parallel
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             tasks = []
-            for file_path in file_paths_to_upload:
+            for file_path in file_paths:
                 object_name = f"{upload_folder}/{file_path.name}"
                 logger.info(
-                    f"Scheduling upload and presigned URL generation for '{file_path}'."
+                    f"Scheduling upload and public URL generation for '{file_path}'."
                 )
                 tasks.append(
                     executor.submit(
-                        _upload_and_create_presigned_url,
+                        _upload_and_get_public_url,
                         object_storage_client,
                         namespace,
                         bucket_name,
                         str(file_path),
                         object_name,
-                        url_expiration_hours,
-                        as_zip,
                     )
                 )
 
             # Collect results as they complete
             for future in concurrent.futures.as_completed(tasks):
                 try:
-                    url = future.result()
-                    presigned_urls.append(url)
+                    result = future.result()
+                    if result:
+                        file_name, url = result
+                        public_urls[file_name] = url
                     logger.info(
-                        f" - Successfully processed one file. Total URLs: {len(presigned_urls)}"
+                        f" - Successfully processed one file. Total URLs: {len(public_urls)}"
                     )
-                except (S3UploadError, S3PresignedUrlError) as exc:
+                except S3UploadError as exc:
                     logger.error(f"A file generation task failed: {exc}")
                     raise
                 except Exception as exc:
@@ -202,15 +153,12 @@ def upload_and_get_presigned_urls(
                         f"Unexpected error in file generation task: {exc}"
                     )
 
-        return presigned_urls
+        return public_urls
 
     except oci.exceptions.ServiceError as e:
         logger.error(f"OCI ServiceError: {e.code} - {e.message}")
         logger.error("Please check your OCI configuration and permissions.")
         raise S3UploadError(f"OCI ServiceError: {e.code} - {e.message}")
-    except FileNotFoundError:
-        logger.error(f"Error: The directory '{directory_path}' was not found.")
-        raise S3UploadError(f"Error: The directory '{directory_path}' was not found.")
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
         raise S3UploadError(f"An unexpected error occurred: {e}")
@@ -262,16 +210,3 @@ def list_directories(directory: str | None):
         raise HTTPException(
             status_code=500, detail=f"An unexpected error occurred: {e}"
         )
-
-
-# def get_zip_from_presigned_urls(presigned_urls: list[str], download_path: Path) -> Path:
-#     """
-#     Downloads files from the provided presigned URLs and creates a ZIP archive.
-
-#     Args:
-#         presigned_urls (list[str]): List of presigned URLs to download files from.
-#         download_path (Path): The local path where the ZIP file will be saved.
-
-#     Returns:
-#     """
-#     object_storage_client.d

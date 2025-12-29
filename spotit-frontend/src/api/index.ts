@@ -55,10 +55,18 @@ export const generateStems = async (
     throw new Error("Invalid URL. Please provide a Spotify or YouTube URL.");
   }
 
+  const LAST_STEM_SUFFIX = "original_trimmed.mp3";
+
+  const last = response.urls.find((url) =>
+    url.includes(LAST_STEM_SUFFIX)
+  )!;
   return {
-    urls: response.urls.sort((a, b) =>
-      a.split("/").pop()!.localeCompare(b.split("/").pop()!)
-    ),
+    urls: [
+      ...response.urls
+        .filter((url) => !url.includes(LAST_STEM_SUFFIX))
+        .sort((a, b) => b.split("/").pop()!.localeCompare(a.split("/").pop()!)),
+      last,
+    ],
   };
 };
 

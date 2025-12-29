@@ -1,4 +1,6 @@
 from pathlib import Path
+import re
+import shutil
 
 from fastapi import HTTPException
 from app.logger import logger
@@ -119,3 +121,36 @@ def merge_stems_and_export(stems_dir: Path, trimmed_audio_path: Path, output_dir
     outputs["original_trimmed.mp3"] = orig_mp3
 
     return outputs
+
+
+# --- Helper Functions ---
+def sanitize_filename(name: str) -> str:
+    """Sanitize a string to be safe for use as a directory or file name, allowing Unicode (including Hebrew) characters."""
+    # Allow Unicode letters, numbers, underscore, dash, and dot
+    # u0590-u05FFFF covers all Unicode code points
+    return re.sub(r"[^\w\-\.\u0590-\u05FF]", "_", name, flags=re.UNICODE)
+
+
+def cleanup_files(*paths):
+    """Removes files and directories to free up space after processing."""
+    for path in paths:
+        try:
+            if path is None:
+                logger.debug("cleanup_files: Skipping None path.")
+                continue
+            if path.is_dir():
+                shutil.rmtree(path)
+                logger.info(f"Removed directory: {path}")
+            elif path.exists():
+                path.unlink()
+                logger.info(f"Removed file: {path}")
+            else:
+                logger.debug(f"cleanup_files: Path does not exist: {path}")
+        except Exception as e:
+            logger.error(f"Error cleaning up {path}: {e}")
+
+
+def print_directory_tree(root_dir: Path):
+    logger.info(f"Directory tree for {root_dir}:")
+    for path in root_dir.rglob("*"):
+        logger.info(f"  {path.resolve()}")

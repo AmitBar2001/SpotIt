@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     )
     spotify_client_id: str
     spotify_client_secret: str
+    callback_api_key: str
+    api_key: str
 
     class Config:
         env_file = ".env"
