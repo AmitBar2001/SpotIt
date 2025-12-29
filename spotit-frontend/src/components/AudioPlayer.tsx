@@ -2,24 +2,34 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Music } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
-export function AudioPlayer({ urls }: { urls: string[] }) {
-  const getTrackName = (url: string) => {
-    const parts = url.split("?")[0].split("/");
-    const fileName = parts[parts.length - 1];
-    return fileName.replace(/_/g, " ").replace(".mp3", "");
+export function AudioPlayer({
+  stems,
+}: {
+  stems: {
+    drums: string;
+    bass: string;
+    guitar: string;
+    other: string;
+    original: string;
   };
-
+}) {
   // Custom audio player with slider
-  const AudioWithSlider = ({ url, initialVolume = 1 }: { url: string, initialVolume: number; }) => {
+  const AudioWithSlider = ({
+    url,
+    initialVolume = 1,
+  }: {
+    url: string;
+    initialVolume: number;
+  }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
 
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = initialVolume;
-    }
-  }, [initialVolume]); // Re-run effect if initialVolume changes
+    useEffect(() => {
+      if (audioRef.current) {
+        audioRef.current.volume = initialVolume;
+      }
+    }, [initialVolume]); // Re-run effect if initialVolume changes
 
     const handleTimeUpdate = () => {
       if (audioRef.current) {
@@ -67,6 +77,24 @@ export function AudioPlayer({ urls }: { urls: string[] }) {
     );
   };
 
+  const AudioSection = ({
+    url,
+    name,
+    initialVolume,
+  }: {
+    url: string;
+    name: string;
+    initialVolume: number;
+  }) => (
+    <div key={url} className="flex flex-col items-start space-y-2">
+      <div className="flex items-center space-x-4">
+        <Music className="h-6 w-6 text-primary" />
+        <p className="capitalize font-semibold">{name}</p>
+      </div>
+      <AudioWithSlider url={url} initialVolume={initialVolume} />
+    </div>
+  );
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -74,15 +102,15 @@ export function AudioPlayer({ urls }: { urls: string[] }) {
       </CardHeader>
       <CardContent>
         <div className="space-y-8">
-          {urls.map((url, index) => (
-            <div key={url} className="flex flex-col items-start space-y-2">
-              <div className="flex items-center space-x-4">
-                <Music className="h-6 w-6 text-primary" />
-                <p className="capitalize font-semibold">{getTrackName(url)}</p>
-              </div>
-              <AudioWithSlider url={url} initialVolume={index == urls.length - 1 ? 0.8: 1}/>
-            </div>
-          ))}
+          <AudioSection url={stems.drums} name="drums" initialVolume={1} />
+          <AudioSection url={stems.bass} name="bass" initialVolume={1} />
+          <AudioSection url={stems.guitar} name="guitar" initialVolume={1} />
+          <AudioSection url={stems.other} name="other" initialVolume={1} />
+          <AudioSection
+            url={stems.original}
+            name="original"
+            initialVolume={0.8}
+          />
         </div>
       </CardContent>
     </Card>

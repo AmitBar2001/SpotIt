@@ -50,12 +50,6 @@ function App() {
       task?.status === "in_progress");
   const error = task?.status === "failed" ? task.message : null;
 
-  let urls: string[] = [];
-  if (task?.song?.stemsUrls) {
-    const s = task.song.stemsUrls;
-    urls = [s.drums, s.bass, s.guitar, s.other, s.original];
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary font-sans antialiased">
       <div className="container relative flex min-h-screen flex-col items-center justify-center">
@@ -69,7 +63,9 @@ function App() {
           <URLInputForm onSubmit={onSubmit} isLoading={isLoading} />
           {isLoading && <p>Processing... {task?.message || ""}</p>}
           {error && <p className="text-red-500">Error: {error}</p>}
-          {urls.length > 0 && <AudioPlayer urls={urls} />}
+          {task?.song?.stemsUrls && (
+            <AudioPlayer stems={task?.song?.stemsUrls} />
+          )}
         </div>
       </div>
     </div>
