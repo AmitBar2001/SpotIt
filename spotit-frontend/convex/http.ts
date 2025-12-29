@@ -12,6 +12,14 @@ http.route({
     const url = new URL(req.url);
     const taskIdString = url.searchParams.get("taskId");
 
+    const providedKey = req.headers.get("x-api-key");
+
+    if (providedKey !== process.env.HTTP_API_KEY) {
+      return new Response("Unauthorized", {
+        status: 401,
+      });
+    }
+
     if (!taskIdString) {
       return new Response("Missing taskId", { status: 400 });
     }

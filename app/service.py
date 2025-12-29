@@ -11,6 +11,7 @@ from app import s3
 from app.spotify import get_random_track_from_playlist
 from app.youtube import download_and_trim_youtube_audio
 from app.schema import TaskStatusUpdate, UpdateTaskBody, SongMetadata
+from app.config import settings
 
 # --- Configuration ---
 # Create directories for temporary file storage
@@ -25,7 +26,7 @@ async def update_task_status(url: str, data: BaseModel):
     async with httpx.AsyncClient() as client:
         try:
             # Pydantic v1 uses .dict()
-            response = await client.post(url, json=data.dict())
+            response = await client.post(url, json=data.dict(), headers={"x-api-key": settings.callback_api_key})
             response.raise_for_status()
             logger.info(f"Callback sent to {url}: {response.status_code}")
         except Exception as e:
