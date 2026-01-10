@@ -57,6 +57,7 @@ async def process_link_separation_task(
              # though strictly not required if get_random_track_from_playlist is sync and safe.
              # However, we need to modify search term based on it.
              _search_term = None
+             _spotify_track = None
              if "spotify.com" in url_str:
                 logger.info(f"Detected Spotify link: {url_str}")
                 try:
@@ -64,9 +65,9 @@ async def process_link_separation_task(
                         update_task_status(callback_url_str, TaskStatusUpdate(status="in_progress", message="Searching Spotify track")),
                         loop
                     )
-                    track = get_random_track_from_playlist(url_str)
-                    track_name = track["name"]
-                    track_artist = track["artists"][0]["name"]
+                    _spotify_track = get_random_track_from_playlist(url_str)
+                    track_name = _spotify_track["name"]
+                    track_artist = _spotify_track["artists"][0]["name"]
                     logger.info(f"Selected track: {track_name} by {track_artist}")
                     _search_term = f"{track_artist} - {track_name}"
                 except Exception as e:
@@ -80,11 +81,12 @@ async def process_link_separation_task(
                  loop
              )
         
-             return download_and_trim_youtube_audio(
+             _trimmed_audio_path, _video_info = download_and_trim_youtube_audio(
                 url_str, start_time, duration, DOWNLOAD_DIR, _search_term
              )
+             return _trimmed_audio_path, _video_info, _spotify_track
 
-        trimmed_audio_path, video_info = await asyncio.to_thread(_download)
+        trimmed_audio_path, video_info, spotify_track = await asyncio.to_thread(_download)
         
         asyncio.create_task(update_task_status(callback_url_str, TaskStatusUpdate(status="in_progress", message="Separating audio")))
 
@@ -135,14 +137,44 @@ async def process_link_separation_task(
                 final_urls[key] = None
 
         # Construct Metadata
-        metadata = SongMetadata(
-            title=video_info.get("title", "Unknown Title"),
-            artists=[video_info.get("artist") or video_info.get("uploader") or "Unknown Artist"],
-            album=video_info.get("album") or "Unknown Album",
-            duration=int(video_info.get("duration", 0)),
-            youtube_views=int(video_info.get("view_count", 0)),
-            year=int(video_info.get("upload_date")[:4]) if video_info.get("upload_date") else 0
-        )
+        if spotify_track:
+            release_date = spotify_track["album"].get("release_date", "")
+            year = int(release_date[:4]) if release_date and len(release_date) >= 4 else 0
+            metadata = SongMetadata(
+                title=spotify_track["name"],
+                artists=[a["name"] for a in spotify_track["artists"]],
+                album={
+                    "name": spotify_track["album"]["name"],
+                    "images": [i["url"] for i in spotify_track["album"]["images"]]
+                },
+                duration=int(spotify_track["duration_ms"] / 1000),
+                youtube_views=int(video_info.get("view_count", 0)),
+                year=year
+            )
+        else:
+            upload_date = video_info.get("upload_date", "")
+            year = int(upload_date[:4]) if upload_date and len(upload_date) >= 4 else 0
+            
+            # YouTube metadata often has artist in 'artist' or 'creators'
+            artists = []
+            if video_info.get("artist"):
+                artists.append(video_info.get("artist"))
+            elif video_info.get("creators"):
+                artists.extend(video_info.get("creators"))
+            else:
+                artists.append(video_info.get("uploader") or "Unknown Artist")
+
+            metadata = SongMetadata(
+                title=video_info.get("title", "Unknown Title"),
+                artists=artists,
+                album={
+                    "name": video_info.get("album") or "Unknown Album",
+                    "images": [t["url"] for t in video_info.get("thumbnails", [])] if video_info.get("thumbnails") else []
+                },
+                duration=int(video_info.get("duration", 0)),
+                youtube_views=int(video_info.get("view_count", 0)),
+                year=year
+            )
 
         # Final Success Callback
         result_body = UpdateTaskBody(

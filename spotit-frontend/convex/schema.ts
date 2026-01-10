@@ -30,7 +30,10 @@ export default defineSchema({
     metadata: v.object({
       title: v.string(),
       artists: v.array(v.string()),
-      album: v.optional(v.string()),
+      album: v.object({
+        name: v.string(),
+        images: v.array(v.string()),
+      }),
       duration: v.number(),
       youtube_views: v.number(),
       year: v.number(),

@@ -1,8 +1,37 @@
-from fastapi import APIRouter, Query, BackgroundTasks
-from app.schema import SeparateFromLinkRequest
+from fastapi import APIRouter, Query, BackgroundTasks, HTTPException
+from app.schema import SeparateFromLinkRequest, SongMetadata
 from app import service
+from app.spotify import search_spotify_track
 
 router = APIRouter()
+
+@router.get(
+    "/search-track/",
+    summary="Search Track on Spotify",
+    description="Search for a track on Spotify by name (and optional artist) and return metadata.",
+    response_model=SongMetadata,
+)
+def search_track(
+    query: str = Query(..., description="The search query (e.g. 'Song Name Artist Name')")
+):
+    track = search_spotify_track(query)
+    if not track:
+        raise HTTPException(status_code=404, detail="Track not found on Spotify")
+    
+    release_date = track["album"].get("release_date", "")
+    year = int(release_date[:4]) if release_date and len(release_date) >= 4 else 0
+    
+    return SongMetadata(
+        title=track["name"],
+        artists=[a["name"] for a in track["artists"]],
+        album={
+            "name": track["album"]["name"],
+            "images": [i["url"] for i in track["album"]["images"]]
+        },
+        duration=int(track["duration_ms"] / 1000),
+        youtube_views=0, # Not available from Spotify
+        year=year
+    )
 
 @router.post(
     "/separate-from-link/",

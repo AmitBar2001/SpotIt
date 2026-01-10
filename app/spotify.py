@@ -65,6 +65,16 @@ def get_random_track_from_playlist(playlist_url_or_id):
     return random.choice(tracks)["track"]
 
 
+def search_spotify_track(query):
+    """Searches for a track on Spotify."""
+    logger.info(f"Searching Spotify for: {query}")
+    results = sp.search(q=query, type="track", limit=1)
+    items = results["tracks"]["items"]
+    if not items:
+        return None
+    return items[0]
+
+
 # Example: Replace with your playlist link
 PLAYLIST_LINK = (
     "https://open.spotify.com/playlist/324VWVYDNw9wQgBPboPNHh?si=5a97d8809c3f4940"

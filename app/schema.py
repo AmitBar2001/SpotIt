@@ -14,10 +14,14 @@ class SeparateFromLinkRequest(BaseModel):
     duration: int = Field(30, gt=0, le=300, description="Duration of the audio clip in seconds (max 300).")
     callback_url: HttpUrl = Field(..., description="URL to receive task status updates via POST requests.")
 
+class AlbumMetadata(BaseModel):
+    name: str = Field(..., description="Name of the album")
+    images: list[str] = Field(..., description="List of image URLs for the album")
+
 class SongMetadata(BaseModel):
     title: str = Field(..., description="Title of the song")
     artists: list[str] = Field(..., description="Artists of the song")
-    album: str = Field(..., description="Album of the song")
+    album: AlbumMetadata = Field(..., description="Album metadata of the song")
     duration: int = Field(..., description="Duration of the song in seconds")
     youtube_views: int = Field(..., description="Number of YouTube views for the song")
     year: int = Field(..., description="Release year of the song")

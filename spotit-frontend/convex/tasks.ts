@@ -20,7 +20,10 @@ const TaskStatusUpdateValidator = v.object({
 const SongMetadataValidator = v.object({
   title: v.string(),
   artists: v.array(v.string()),
-  album: v.string(),
+  album: v.object({
+    name: v.string(),
+    images: v.array(v.string()),
+  }),
   duration: v.number(),
   youtube_views: v.number(),
   year: v.number(),
