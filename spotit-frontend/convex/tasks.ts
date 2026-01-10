@@ -48,6 +48,8 @@ export const handleTaskUpdate = internalMutation({
   },
   handler: async (ctx, args) => {
     const payload = args.payload;
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
 
     if ("song_metadata" in payload) {
       // UpdateTaskBody
@@ -81,6 +83,23 @@ export const handleTaskUpdate = internalMutation({
         updatedAt: Date.now(),
         songId: songId,
       });
+
+      // If this was a daily song task, create the daily entry
+      if (task.type === "daily") {
+        const today = new Date().toISOString().split("T")[0];
+        // Check if entry already exists to avoid duplicates
+        const existing = await ctx.db
+          .query("daily_songs")
+          .withIndex("by_date", (q) => q.eq("date", today))
+          .first();
+        
+        if (!existing) {
+          await ctx.db.insert("daily_songs", {
+            date: today,
+            songId: songId,
+          });
+        }
+      }
     } else {
       // TaskStatusUpdate
       await ctx.db.patch(args.taskId, {
@@ -97,6 +116,7 @@ export const createTask = mutation({
     songUrl: v.string(),
     start_time: v.optional(v.number()),
     duration: v.optional(v.number()),
+    type: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const taskId = await ctx.db.insert("tasks", {
@@ -105,6 +125,7 @@ export const createTask = mutation({
         start_time: args.start_time,
         duration: args.duration,
       },
+      type: args.type,
       status: "pending",
       message: "Task created",
       updatedAt: Date.now(),

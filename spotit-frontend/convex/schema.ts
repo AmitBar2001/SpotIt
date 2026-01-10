@@ -8,6 +8,7 @@ export default defineSchema({
       start_time: v.optional(v.number()),
       duration: v.optional(v.number()),
     }),
+    type: v.optional(v.string()),
     status: v.union(
       v.literal("pending"),
       v.literal("in_progress"),
@@ -39,4 +40,8 @@ export default defineSchema({
       year: v.number(),
     }),
   }),
+  daily_songs: defineTable({
+    date: v.string(),
+    songId: v.id("songs"),
+  }).index("by_date", ["date"]),
 });
