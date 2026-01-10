@@ -6,10 +6,10 @@ export function AudioPlayer({
   stems,
 }: {
   stems: {
-    drums: string;
-    bass: string;
-    guitar: string;
-    other: string;
+    drums: string | null;
+    bass: string | null;
+    guitar: string | null;
+    other: string | null;
     original: string;
   };
 }) {
@@ -102,10 +102,10 @@ export function AudioPlayer({
       </CardHeader>
       <CardContent>
         <div className="space-y-8">
-          <AudioSection url={stems.drums} name="drums" initialVolume={1} />
-          <AudioSection url={stems.bass} name="bass" initialVolume={1} />
-          <AudioSection url={stems.guitar} name="guitar" initialVolume={1} />
-          <AudioSection url={stems.other} name="other" initialVolume={1} />
+          {stems.drums && <AudioSection url={stems.drums} name="drums" initialVolume={1} />}
+          {stems.bass && <AudioSection url={stems.bass} name="bass" initialVolume={1} />}
+          {stems.guitar && <AudioSection url={stems.guitar} name="guitar" initialVolume={1} />}
+          {stems.other && <AudioSection url={stems.other} name="other" initialVolume={1} />}
           <AudioSection
             url={stems.original}
             name="original"

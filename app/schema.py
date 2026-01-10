@@ -25,5 +25,5 @@ class SongMetadata(BaseModel):
 class UpdateTaskBody(BaseModel):
     task_status: TaskStatusUpdate = Field(..., description="Status update for the task")
     song_metadata: SongMetadata = Field(..., description="Metadata of the song")
-    file_keys: dict[FileKey, str] = Field(..., description="Mapping of file (object storage) keys for the song files")
+    file_keys: dict[FileKey, str | None] = Field(..., description="Mapping of file (object storage) keys for the song files")
     

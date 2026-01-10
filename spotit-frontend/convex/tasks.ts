@@ -30,10 +30,10 @@ const UpdateTaskBodyValidator = v.object({
   task_status: TaskStatusUpdateValidator,
   song_metadata: SongMetadataValidator,
   file_keys: v.object({
-    drums: v.string(),
-    bass: v.string(),
-    guitar: v.string(),
-    other: v.string(),
+    drums: v.union(v.string(), v.null()),
+    bass: v.union(v.string(), v.null()),
+    guitar: v.union(v.string(), v.null()),
+    other: v.union(v.string(), v.null()),
     original: v.string(),
   }),
 });

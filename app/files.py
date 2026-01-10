@@ -55,24 +55,37 @@ def merge_stems_and_export(stems_dir: Path, trimmed_audio_path: Path, output_dir
     logger.debug(f"Found stem files: {stem_files}")
     # Demucs 6s stem order: drums, bass, vocals, other, guitar, piano
     # We'll use the actual file names to be robust
-    get = lambda name: next((f for s, f in stem_files.items() if name in s), None)
 
-    drums = get("drums")
-    bass = get("bass")
-    guitar = get("guitar")
-    other = get("other")
-    piano = get("piano")
+    def get_non_silent(name):
+        f = next((f for s, f in stem_files.items() if name in s), None)
+        if f and is_wav_silent(f):
+            logger.info(f"Stem {name} ({f}) is silent. Ignoring.")
+            return None
+        return f
+
+    drums = get_non_silent("drums")
+    bass = get_non_silent("bass")
+    guitar = get_non_silent("guitar")
+    other = get_non_silent("other")
+    piano = get_non_silent("piano")
     # vocals = get("vocals")  # Not used in your requested mixes
 
     outputs = {}
 
     def ffmpeg_merge(inputs, outname):
+        # Filter out None inputs (silent stems)
+        valid_inputs = [f for f in inputs if f is not None]
+
+        if not valid_inputs:
+            logger.info(f"All inputs for {outname} are silent/missing. Skipping generation.")
+            return None
+
         outpath = output_dir / outname
         cmd = [
             "ffmpeg",
-            *sum([["-i", str(f)] for f in inputs], []),
+            *sum([["-i", str(f)] for f in valid_inputs], []),
             "-filter_complex",
-            f"amix=inputs={len(inputs)}:duration=longest:dropout_transition=0",
+            f"amix=inputs={len(valid_inputs)}:duration=longest:dropout_transition=0",
             "-c:a",
             "libmp3lame",
             "-q:a",
@@ -84,22 +97,21 @@ def merge_stems_and_export(stems_dir: Path, trimmed_audio_path: Path, output_dir
         return outpath
 
     # 1. Drums only
-    if drums:
-        outputs["drums.mp3"] = ffmpeg_merge([drums], "drums.mp3")
+    outputs["drums.mp3"] = ffmpeg_merge([drums], "drums.mp3")
+
     # 2. Drums + Bass
-    if drums and bass:
-        outputs["drums_bass.mp3"] = ffmpeg_merge([drums, bass], "drums_bass.mp3")
+    outputs["drums_bass.mp3"] = ffmpeg_merge([drums, bass], "drums_bass.mp3")
+
     # 3. Drums + Bass + Guitar
-    if drums and bass and guitar:
-        outputs["drums_bass_guitar.mp3"] = ffmpeg_merge(
-            [drums, bass, guitar], "drums_bass_guitar.mp3"
-        )
+    outputs["drums_bass_guitar.mp3"] = ffmpeg_merge(
+        [drums, bass, guitar], "drums_bass_guitar.mp3"
+    )
+
     # 4. Drums + Bass + Guitar + Other + Piano
-    merged = [f for f in [drums, bass, guitar, other, piano] if f]
-    if len(merged) >= 2:
-        outputs["drums_bass_guitar_other_piano.mp3"] = ffmpeg_merge(
-            merged, "drums_bass_guitar_other_piano.mp3"
-        )
+    outputs["drums_bass_guitar_other_piano.mp3"] = ffmpeg_merge(
+        [drums, bass, guitar, other, piano], "drums_bass_guitar_other_piano.mp3"
+    )
+
     # 5. Original trimmed mp3
     # Convert trimmed wav to mp3
     orig_mp3 = output_dir / "original_trimmed.mp3"
@@ -124,6 +136,41 @@ def merge_stems_and_export(stems_dir: Path, trimmed_audio_path: Path, output_dir
 
 
 # --- Helper Functions ---
+def is_wav_silent(file_path: Path) -> bool:
+    """Checks if a WAV file is completely silent using ffmpeg volumedetect."""
+    logger.info(f"Checking if {file_path} is silent")
+    cmd = [
+        "ffmpeg",
+        "-i",
+        str(file_path),
+        "-af",
+        "volumedetect",
+        "-f",
+        "null",
+        "-",
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        # Look for max_volume in stderr: max_volume: -91.0 dB or max_volume: -inf dB
+        match = re.search(r"max_volume: ([\-\d\.]+|inf) dB", result.stderr)
+        if match:
+            max_vol_str = match.group(1)
+            if max_vol_str == "-inf" or max_vol_str == "inf": # inf shouldn't happen for volume but just in case
+                logger.info(f"File {file_path} is silent (-inf dB).")
+                return True
+            try:
+                max_vol = float(max_vol_str)
+                if max_vol <= -50.0:
+                    logger.info(f"File {file_path} is silent ({max_vol} dB).")
+                    return True
+            except ValueError:
+                pass
+        return False
+    except Exception as e:
+        logger.error(f"Error checking silence for {file_path}: {e}")
+        return False
+
+
 def sanitize_filename(name: str) -> str:
     """Sanitize a string to be safe for use as a directory or file name, allowing Unicode (including Hebrew) characters."""
     # Allow Unicode letters, numbers, underscore, dash, and dot

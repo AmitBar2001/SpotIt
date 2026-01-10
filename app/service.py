@@ -111,8 +111,9 @@ async def process_link_separation_task(
         )
 
         # Upload
+        valid_mp3s = [f for f in mp3s.values() if f]
         urls = await asyncio.to_thread(
-            upload_and_get_presigned_urls, list(mp3s.values()), temp_output_path.name
+            upload_and_get_presigned_urls, valid_mp3s, temp_output_path.name
         )
 
         # Map filenames to schema keys
@@ -125,9 +126,13 @@ async def process_link_separation_task(
         }
 
         final_urls = {}
-        for filename, url in urls.items():
-            if filename in file_key_mapping:
-                final_urls[file_key_mapping[filename]] = url
+        for filename, key in file_key_mapping.items():
+            if filename in urls:
+                final_urls[key] = urls[filename]
+            else:
+                # If not in urls, it might be because it was silent (None in mp3s) or failed upload
+                # In either case, we can set it to None if that's the desired behavior for "missing" files
+                final_urls[key] = None
 
         # Construct Metadata
         metadata = SongMetadata(
