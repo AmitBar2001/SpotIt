@@ -11,7 +11,10 @@ sp = spotipy.Spotify(
     auth_manager=SpotifyClientCredentials(
         client_id=settings.spotify_client_id,
         client_secret=settings.spotify_client_secret,
-    )
+    ),
+    requests_timeout=15,
+    retries=3,
+    backoff_factor=0.3,
 )
 
 
@@ -29,7 +32,8 @@ def __get_tracks_from_playlist(playlist_url_or_id):
 
     tracks = []
     # Spotify API limits results to 100, so you need to loop for large playlists
-    results = sp.playlist_tracks(playlist_id)
+    fields = "next,items(track(name,artists(name),album(name,images(url),release_date),duration_ms))"
+    results = sp.playlist_tracks(playlist_id, fields=fields)
     tracks.extend(results["items"])
 
     logger.info(f"Fetched {len(results['items'])} tracks from playlist {playlist_id}.")
