@@ -37,6 +37,7 @@ def download_and_trim_youtube_audio(
     # Use yt-dlp template to get video title as filename (safe)
     # We'll use download_path as the directory, and let yt-dlp set the filename
     outtmpl = str(download_path / "%(title)s.%(ext)s")
+    
     ydl_opts = {
         "format": "bestaudio/best",
         "outtmpl": outtmpl,
@@ -44,22 +45,37 @@ def download_and_trim_youtube_audio(
         "postprocessors": [
             {
                 "key": "FFmpegExtractAudio",
-                "preferredcodec": "wav",  # Demucs works well with wav
+                "preferredcodec": "wav",
             }
         ],
         "logger": logger,
-        # "external_downloader": "aria2c",
-        "postprocessor_args": ["-ar", "44100", "-ac", "2"],  # Ensure 44.1kHz, stereo
-        "cookiefile": (
-            settings.yt_dlp_cookies_file_path
-            if os.path.exists(settings.yt_dlp_cookies_file_path)
-            else None
-        ),
+        "postprocessor_args": ["-ar", "44100", "-ac", "2"],
         "writesubtitles": False,
-        "writeinfojson": True,  # Download info JSON
+        "writeinfojson": True,
         "keepvideo": False,
-        # "extractor_args": {"youtube": {"player_client": ['default'], "player_js_version": ['actual']}}
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["web_creator", "ios", "android"],
+            }
+        },
+        "nocheckcertificate": True,
+        # Cookies are currently causing issues with the robust clients (ios/android/web_creator)
+        # "cookiefile": (
+        #     settings.yt_dlp_cookies_file_path
+        #     if os.path.exists(settings.yt_dlp_cookies_file_path)
+        #     else None
+        # ),
     }
+
+    # Use proxy if configured
+    if settings.yt_dlp_proxy is not None:
+        ydl_opts["proxy"] = settings.yt_dlp_proxy
+        logger.info("Using proxy for yt-dlp.")
+
+
+
+
+
 
     if settings.yt_dlp_proxy is not None:
         ydl_opts["proxy"] = settings.yt_dlp_proxy
