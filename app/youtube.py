@@ -53,12 +53,8 @@ def download_and_trim_youtube_audio(
         "writesubtitles": False,
         "writeinfojson": True,
         "keepvideo": False,
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["web_creator", "ios", "android", "web", "tv"],
-            }
-        },
-        "nocheckcertificate": True,
+        "extractor_args": {"youtube": {"player_client": ['default'], "player_js_version": ['actual']}},
+        "external_downloader": "aria2c",
         "cookiefile": (
             settings.yt_dlp_cookies_file_path
             if os.path.exists(settings.yt_dlp_cookies_file_path)
@@ -66,16 +62,10 @@ def download_and_trim_youtube_audio(
         ),
     }
 
-
     # Use proxy if configured
     if settings.yt_dlp_proxy is not None:
         ydl_opts["proxy"] = settings.yt_dlp_proxy
         logger.info("Using proxy for yt-dlp.")
-
-
-
-
-
 
     if settings.yt_dlp_proxy is not None:
         ydl_opts["proxy"] = settings.yt_dlp_proxy
