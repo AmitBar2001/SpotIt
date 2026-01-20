@@ -55,17 +55,17 @@ def download_and_trim_youtube_audio(
         "keepvideo": False,
         "extractor_args": {
             "youtube": {
-                "player_client": ["web_creator", "ios", "android"],
+                "player_client": ["web_creator", "ios", "android", "web", "tv"],
             }
         },
         "nocheckcertificate": True,
-        # Cookies are currently causing issues with the robust clients (ios/android/web_creator)
-        # "cookiefile": (
-        #     settings.yt_dlp_cookies_file_path
-        #     if os.path.exists(settings.yt_dlp_cookies_file_path)
-        #     else None
-        # ),
+        "cookiefile": (
+            settings.yt_dlp_cookies_file_path
+            if os.path.exists(settings.yt_dlp_cookies_file_path)
+            else None
+        ),
     }
+
 
     # Use proxy if configured
     if settings.yt_dlp_proxy is not None:
