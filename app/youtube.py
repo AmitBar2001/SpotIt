@@ -53,8 +53,9 @@ def download_and_trim_youtube_audio(
         "writesubtitles": False,
         "writeinfojson": True,
         "keepvideo": False,
-        "extractor_args": {"youtube": {"player_client": ['default'], "player_js_version": ['actual']}},
         "external_downloader": "aria2c",
+        "extractor_args": {"youtube": {"player_client": ['default'], "player_js_version": ['actual']}},
+        "js_runtimes": "node",
         "cookiefile": (
             settings.yt_dlp_cookies_file_path
             if os.path.exists(settings.yt_dlp_cookies_file_path)
