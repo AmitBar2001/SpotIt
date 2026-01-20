@@ -3,24 +3,37 @@ from spotipy.oauth2 import SpotifyClientCredentials
 from app.logger import logger
 from app.config import settings
 import random
-import functools
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 
 # Authenticate with Client Credentials Flow
+# Configure retry strategy to handle ReadTimeouts
+retry_strategy = Retry(
+    total=3,
+    backoff_factor=0.3,
+    status_forcelist=[429, 500, 502, 503, 504],
+    allowed_methods=["HEAD", "GET", "OPTIONS", "POST", "PUT", "DELETE"],
+    read=3,  # Enable retries for ReadTimeout errors
+)
+session = requests.Session()
+adapter = HTTPAdapter(max_retries=retry_strategy)
+session.mount("https://", adapter)
+session.mount("http://", adapter)
+
 sp = spotipy.Spotify(
     auth_manager=SpotifyClientCredentials(
         client_id=settings.spotify_client_id,
         client_secret=settings.spotify_client_secret,
     ),
+    requests_session=session,
     requests_timeout=15,
-    retries=3,
-    backoff_factor=0.3,
 )
 
 
-@functools.lru_cache(maxsize=5)
-def __get_tracks_from_playlist(playlist_url_or_id):
-    """Fetches all tracks from a given Spotify playlist."""
+def get_random_track_from_playlist(playlist_url_or_id):
+    """Fetches a random track from a given Spotify playlist efficiently."""
 
     # 1. Extract the playlist ID from the URL if a URL is provided
     if "spotify.com/playlist/" in playlist_url_or_id:
@@ -28,45 +41,62 @@ def __get_tracks_from_playlist(playlist_url_or_id):
     else:
         playlist_id = playlist_url_or_id  # Assume it's already an ID
 
-    logger.info(f"Fetching tracks from playlist ID: {playlist_id}")
+    logger.info(f"Fetching random track from playlist ID: {playlist_id}")
 
-    tracks = []
-    # Spotify API limits results to 100, so you need to loop for large playlists
-    fields = "next,items(track(name,artists(name),album(name,images(url),release_date),duration_ms))"
-    results = sp.playlist_tracks(playlist_id, fields=fields)
-    tracks.extend(results["items"])
+    try:
+        # 2. Get the total number of tracks
+        response = sp.playlist_tracks(playlist_id, fields="total", limit=1)
+        if not response:
+             logger.error("Failed to fetch playlist details.")
+             raise ValueError("Failed to fetch playlist details.")
+        
+        total_tracks = response["total"]
 
-    logger.info(f"Fetched {len(results['items'])} tracks from playlist {playlist_id}.")
+        if total_tracks == 0:
+            logger.error("No tracks found in the playlist.")
+            raise ValueError("No tracks found in the playlist.")
 
-    # Handle pagination for playlists with more than 100 songs
-    while results["next"]:
-        logger.info(f"Fetching next page of tracks for playlist {playlist_id}...")
-        results = sp.next(results)
-        tracks.extend(results["items"])
+        logger.info(f"Total tracks in playlist: {total_tracks}")
 
-    logger.info(f"Total tracks fetched: {len(tracks)}")
+        # Retry logic in case we hit a local/null track
+        max_retries = 5
+        for _ in range(max_retries):
+            # 3. Pick a random index
+            random_offset = random.randint(0, total_tracks - 1)
+            # logger.info(f"Selected random offset: {random_offset}")
 
-    return tracks
-    # # Extract the song title and artist
-    # song_list = []
-    # for item in tracks:
-    #     track = item['track']
-    #     if track: # Check if the track object is not None (e.g., local files might be)
-    #         artist = track['artists'][0]['name']
-    #         title = track['name']
-    #         song_list.append((title, artist))
+            # 4. Fetch the specific track
+            # Fetching specific fields to minimize data transfer
+            fields = "items(track(name,artists(name),album(name,images(url),release_date),duration_ms))"
+            response = sp.playlist_tracks(
+                playlist_id, fields=fields, limit=1, offset=random_offset
+            )
 
-    # return song_list
+            if not response:
+                logger.warning(
+                    f"No response from Spotify at offset {random_offset}, retrying..."
+                )
+                continue
 
+            items = response.get("items", [])
+            if not items:
+                continue
 
-def get_random_track_from_playlist(playlist_url_or_id):
-    tracks = __get_tracks_from_playlist(playlist_url_or_id)
+            track_item = items[0]
+            track = track_item.get("track")
 
-    if not tracks:
-        logger.error("No tracks found in the playlist.")
-        raise ValueError("No tracks found in the playlist.")
+            if track:
+                return track
 
-    return random.choice(tracks)["track"]
+            logger.warning(
+                f"Track at offset {random_offset} was None (likely local file), retrying..."
+            )
+
+        raise ValueError("Failed to find a valid track after multiple attempts.")
+
+    except Exception as e:
+        logger.error(f"Error getting random track: {e}")
+        raise
 
 
 def search_spotify_track(query):
