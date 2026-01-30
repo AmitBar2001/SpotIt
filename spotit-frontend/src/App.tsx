@@ -9,7 +9,8 @@ import {
   useQuery,
 } from "convex/react";
 import * as z from "zod";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel.d.ts";
 import { triggerColdBoot } from "@/api";
@@ -23,6 +24,7 @@ const FormSchema = z.object({
 });
 
 function App() {
+  const [showDetails, setShowDetails] = useState(false);
   useEffect(() => {
     triggerColdBoot();
   }, []);
@@ -64,7 +66,75 @@ function App() {
           {isLoading && <p>Processing... {task?.message || ""}</p>}
           {error && <p className="text-red-500">Error: {error}</p>}
           {task?.song?.stemsUrls && (
-            <AudioPlayer stems={task?.song?.stemsUrls} />
+            <div className="w-full flex flex-col items-center">
+              <AudioPlayer stems={task.song.stemsUrls} />
+
+              <div className="mt-6 text-center w-full">
+                <div className="flex justify-center items-center space-x-4 text-sm text-muted-foreground mb-4">
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium">
+                      {task.song.metadata.youtube_views.toLocaleString()}
+                    </span>
+                    <span>views</span>
+                  </div>
+                  <span>•</span>
+                  <span>{task.song.metadata.year}</span>
+                </div>
+
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowDetails(!showDetails)}
+                  className="w-full"
+                >
+                  {showDetails ? "Hide Details" : "Show Details"}
+                </Button>
+
+                {showDetails && (
+                  <div className="mt-4 p-4 rounded-lg bg-secondary/50 text-left space-y-4 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-start gap-4">
+                      {task.song.metadata.album.images[0] && (
+                        <img
+                          src={task.song.metadata.album.images[0]}
+                          alt={task.song.metadata.album.name}
+                          className="w-20 h-20 rounded-md object-cover shadow-sm"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3
+                          className="font-bold text-lg leading-tight truncate"
+                          title={task.song.metadata.title}
+                        >
+                          {task.song.metadata.title}
+                        </h3>
+                        <p
+                          className="text-muted-foreground truncate"
+                          title={task.song.metadata.artists.join(", ")}
+                        >
+                          {task.song.metadata.artists.join(", ")}
+                        </p>
+                        <p
+                          className="text-xs text-muted-foreground mt-1 truncate"
+                          title={task.song.metadata.album.name}
+                        >
+                          {task.song.metadata.album.name}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs text-muted-foreground border-t pt-3">
+                      <span>Duration</span>
+                      <span className="font-mono">
+                        {Math.floor(task.song.metadata.duration / 60)}:
+                        {String(task.song.metadata.duration % 60).padStart(
+                          2,
+                          "0"
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>
