@@ -41,7 +41,11 @@ export function URLInputForm({
           render={({ field }) => (
             <FormItem>
               <FormControl>
-                <Input placeholder="YouTube or Spotify URL" {...field} className="" />
+                <Input
+                  placeholder="YouTube or Spotify URL"
+                  {...field}
+                  className=""
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -49,7 +53,7 @@ export function URLInputForm({
         />
 
         <div className="flex justify-center">
-          <Button type="submit" disabled={isLoading}>
+          <Button variant="secondary" type="submit" disabled={isLoading}>
             {isLoading ? "Generating..." : "Generate"}
           </Button>
         </div>

@@ -33,7 +33,7 @@ function App() {
   const createTask = useMutation(api.tasks.createTask);
   const task = useQuery(
     api.tasks.getTask,
-    taskId ? { taskId: taskId as Id<"tasks"> } : "skip"
+    taskId ? { taskId: taskId as Id<"tasks"> } : "skip",
   );
 
   const onSubmit = async (data: z.infer<typeof FormSchema>) => {
@@ -67,20 +67,20 @@ function App() {
           {error && <p className="text-red-500">Error: {error}</p>}
           {task?.song?.stemsUrls && (
             <div className="w-full flex flex-col items-center">
+              <div className="flex justify-center items-center space-x-4 text-sm text-muted-foreground mb-4">
+                <div className="flex items-center gap-1">
+                  <span className="font-medium">
+                    {task.song.metadata.youtube_views.toLocaleString()}
+                  </span>
+                  <span>views</span>
+                </div>
+                <span>•</span>
+                <span>{task.song.metadata.year}</span>
+              </div>
+
               <AudioPlayer stems={task.song.stemsUrls} />
 
               <div className="mt-6 text-center w-full">
-                <div className="flex justify-center items-center space-x-4 text-sm text-muted-foreground mb-4">
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium">
-                      {task.song.metadata.youtube_views.toLocaleString()}
-                    </span>
-                    <span>views</span>
-                  </div>
-                  <span>•</span>
-                  <span>{task.song.metadata.year}</span>
-                </div>
-
                 <Button
                   variant="secondary"
                   onClick={() => setShowDetails(!showDetails)}
@@ -127,7 +127,7 @@ function App() {
                         {Math.floor(task.song.metadata.duration / 60)}:
                         {String(task.song.metadata.duration % 60).padStart(
                           2,
-                          "0"
+                          "0",
                         )}
                       </span>
                     </div>
