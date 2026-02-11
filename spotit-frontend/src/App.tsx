@@ -1,9 +1,6 @@
 import { NuqsAdapter } from "nuqs/adapters/react-router/v6";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import {
-  ConvexProvider,
-  ConvexReactClient,
-} from "convex/react";
+import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { Navbar } from "@/components/Navbar";
 import Play from "@/pages/Play";
 import Browse from "@/pages/Browse";
@@ -29,7 +26,7 @@ function App() {
 export default function WrappedApp() {
   return (
     <NuqsAdapter>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <ConvexProvider client={convex}>
           <App />
         </ConvexProvider>
