@@ -18,7 +18,7 @@ export default defineSchema({
     message: v.string(),
     updatedAt: v.number(),
     songId: v.optional(v.id("songs")),
-  }),
+  }).index("by_type_status", ["type", "status"]),
   songs: defineTable({
     originalUrl: v.string(),
     stemsUrls: v.object({

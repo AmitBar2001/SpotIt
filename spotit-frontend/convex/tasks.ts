@@ -160,6 +160,31 @@ export const getTask = query({
   },
 });
 
+export const getLatestDailyTask = query({
+  args: {},
+  handler: async (ctx) => {
+    const task = await ctx.db
+      .query("tasks")
+      .withIndex("by_type_status", (q) =>
+        q.eq("type", "daily").eq("status", "completed"),
+      )
+      .order("desc")
+      .first();
+
+    if (!task) return null;
+
+    let song = null;
+    if (task.songId) {
+      song = await ctx.db.get(task.songId);
+    }
+
+    return {
+      ...task,
+      song,
+    };
+  },
+});
+
 export const performSeparation = internalAction({
   args: {
     taskId: v.id("tasks"),

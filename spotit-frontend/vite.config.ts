@@ -8,7 +8,7 @@ dotenv.config();
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: "/SpotIt/",
+  base: "/",
   plugins: [
     react({
       babel: {
@@ -16,7 +16,7 @@ export default defineConfig({
       },
     }),
     tailwindcss(),
-    process.env.VITE_MOCK_API === 'true' && mockApiPlugin(),
+    process.env.VITE_MOCK_API === "true" && mockApiPlugin(),
   ],
   resolve: {
     alias: {

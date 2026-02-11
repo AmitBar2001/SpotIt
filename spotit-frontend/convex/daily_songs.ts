@@ -1,6 +1,8 @@
 import { query, action } from "./_generated/server";
 import { api } from "./_generated/api";
 
+// TODO: utilize this and write songs from daily tasks to daily_songs table
+
 export const getToday = query({
   args: {},
   handler: async (ctx) => {
@@ -9,9 +11,20 @@ export const getToday = query({
       .query("daily_songs")
       .withIndex("by_date", (q) => q.eq("date", today))
       .first();
-    
+
     if (!daily) return null;
     return await ctx.db.get(daily.songId);
+  },
+});
+
+export const getLatestDaily = query({
+  args: {},
+  handler: async (ctx) => {
+    const daily = await ctx.db.query("daily_songs").order("desc").first();
+
+    if (!daily) return null;
+    const song = await ctx.db.get(daily.songId);
+    return song;
   },
 });
 
