@@ -1,7 +1,7 @@
 fastapi==0.116.1
 uvicorn[standard]>=0.22.0
 pydantic>=1.10,<2.0
-yt_dlp>=2026.2.7.233648.dev0
+yt_dlp==2026.2.7.233648.dev0
 yt-dlp-ejs>=0.3.2
 pycryptodomex
 python-multipart>=0.0.5
