@@ -2,6 +2,88 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Music } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
+// Custom audio player with slider
+const AudioWithSlider = ({
+  url,
+  initialVolume = 1,
+}: {
+  url: string;
+  initialVolume: number;
+}) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = initialVolume;
+    }
+  }, [initialVolume]); // Re-run effect if initialVolume changes
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = Number(e.target.value);
+    setCurrentTime(time);
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+    }
+  };
+
+  return (
+    <div className="w-full flex flex-col items-center">
+      <audio
+        ref={audioRef}
+        controls={true}
+        src={url}
+        className="w-full h-12"
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+      />
+      <input
+        type="range"
+        min={0}
+        max={duration || 0}
+        value={currentTime}
+        onChange={handleSliderChange}
+        className="w-full mt-2 accent-primary"
+        step="0.01"
+      />
+      <div className="text-xs text-muted-foreground mt-1">
+        {Math.floor(currentTime)}s / {Math.floor(duration)}s
+      </div>
+    </div>
+  );
+};
+
+const AudioSection = ({
+  url,
+  name,
+  initialVolume,
+}: {
+  url: string;
+  name: string;
+  initialVolume: number;
+}) => (
+  <div key={url} className="flex flex-col items-start space-y-2">
+    <div className="flex items-center space-x-4">
+      <Music className="h-6 w-6 text-primary" />
+      <p className="capitalize font-semibold">{name}</p>
+    </div>
+    <AudioWithSlider url={url} initialVolume={initialVolume} />
+  </div>
+);
+
 export function AudioPlayer({
   stems,
 }: {
@@ -13,88 +95,6 @@ export function AudioPlayer({
     original: string;
   };
 }) {
-  // Custom audio player with slider
-  const AudioWithSlider = ({
-    url,
-    initialVolume = 1,
-  }: {
-    url: string;
-    initialVolume: number;
-  }) => {
-    const audioRef = useRef<HTMLAudioElement>(null);
-    const [currentTime, setCurrentTime] = useState(0);
-    const [duration, setDuration] = useState(0);
-
-    useEffect(() => {
-      if (audioRef.current) {
-        audioRef.current.volume = initialVolume;
-      }
-    }, [initialVolume]); // Re-run effect if initialVolume changes
-
-    const handleTimeUpdate = () => {
-      if (audioRef.current) {
-        setCurrentTime(audioRef.current.currentTime);
-      }
-    };
-
-    const handleLoadedMetadata = () => {
-      if (audioRef.current) {
-        setDuration(audioRef.current.duration);
-      }
-    };
-
-    const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const time = Number(e.target.value);
-      setCurrentTime(time);
-      if (audioRef.current) {
-        audioRef.current.currentTime = time;
-      }
-    };
-
-    return (
-      <div className="w-full flex flex-col items-center">
-        <audio
-          ref={audioRef}
-          controls={true}
-          src={url}
-          className="w-full h-12"
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
-        />
-        <input
-          type="range"
-          min={0}
-          max={duration || 0}
-          value={currentTime}
-          onChange={handleSliderChange}
-          className="w-full mt-2 accent-primary"
-          step="0.01"
-        />
-        <div className="text-xs text-muted-foreground mt-1">
-          {Math.floor(currentTime)}s / {Math.floor(duration)}s
-        </div>
-      </div>
-    );
-  };
-
-  const AudioSection = ({
-    url,
-    name,
-    initialVolume,
-  }: {
-    url: string;
-    name: string;
-    initialVolume: number;
-  }) => (
-    <div key={url} className="flex flex-col items-start space-y-2">
-      <div className="flex items-center space-x-4">
-        <Music className="h-6 w-6 text-primary" />
-        <p className="capitalize font-semibold">{name}</p>
-      </div>
-      <AudioWithSlider url={url} initialVolume={initialVolume} />
-    </div>
-  );
-
   return (
     <Card className="w-full">
       <CardHeader>
@@ -102,10 +102,18 @@ export function AudioPlayer({
       </CardHeader>
       <CardContent>
         <div className="space-y-8">
-          {stems.drums && <AudioSection url={stems.drums} name="drums" initialVolume={1} />}
-          {stems.bass && <AudioSection url={stems.bass} name="bass" initialVolume={1} />}
-          {stems.guitar && <AudioSection url={stems.guitar} name="guitar" initialVolume={1} />}
-          {stems.other && <AudioSection url={stems.other} name="other" initialVolume={1} />}
+          {stems.drums && (
+            <AudioSection url={stems.drums} name="drums" initialVolume={1} />
+          )}
+          {stems.bass && (
+            <AudioSection url={stems.bass} name="bass" initialVolume={1} />
+          )}
+          {stems.guitar && (
+            <AudioSection url={stems.guitar} name="guitar" initialVolume={1} />
+          )}
+          {stems.other && (
+            <AudioSection url={stems.other} name="other" initialVolume={1} />
+          )}
           <AudioSection
             url={stems.original}
             name="original"
