@@ -29,6 +29,7 @@ export default function Play() {
 
   const onSubmit = async (data: z.infer<typeof FormSchema>) => {
     try {
+      setShowDetails(false);
       const newTaskId = await createTask({ songUrl: data.url });
       setTaskId(newTaskId);
     } catch (e) {

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api } from "../../convex/_generated/api";
 
+// TODO: fix can't refresh.
+
 export default function Daily() {
   const [showDetails, setShowDetails] = useState(false);
   const task = useQuery(api.tasks.getLatestDailyTask);
