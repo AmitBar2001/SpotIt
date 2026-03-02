@@ -6,7 +6,7 @@
   "homepage": "https://amitbar2001.github.io/SpotIt",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && cp ./dist/index.html ./dist/404.html",
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "pnpm run build",

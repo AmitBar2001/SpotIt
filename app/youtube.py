@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 import os
 import subprocess
+import shutil
 from pathlib import Path
 
 
@@ -53,8 +54,6 @@ def download_and_trim_youtube_audio(
         "writesubtitles": False,
         "writeinfojson": True,
         "keepvideo": False,
-        "external_downloader": "aria2c",
-        "extractor_args": {"youtube": {"player_client": ['default'], "player_js_version": ['actual']}},
         "js_runtimes": {"node": {}},
         "remote_components": ["ejs:github"],
         "cookiefile": (
@@ -63,6 +62,16 @@ def download_and_trim_youtube_audio(
             else None
         ),
     }
+
+    # Use aria2c if available
+    if shutil.which("aria2c"):
+        ydl_opts["external_downloader"] = "aria2c"
+        logger.info("Using aria2c for yt-dlp.")
+    else:
+        logger.info("aria2c not found, using default downloader for yt-dlp.")
+
+    # Use extractor args if needed
+    ydl_opts["extractor_args"] = {"youtube": {"player_client": ['default'], "player_js_version": ['actual']}}
 
     # Use proxy if configured
     if settings.yt_dlp_proxy is not None:
