@@ -4,6 +4,7 @@ from app.logger import logger
 
 
 import yt_dlp
+from yt_dlp.networking.impersonate import ImpersonateTarget
 from fastapi import HTTPException
 
 
@@ -64,16 +65,13 @@ def download_and_trim_youtube_audio(
         "nocheckcertificate": True,
         "socket_timeout": 30,
         "retries": 10,
+        "prefer_free_formats": True,
     }
 
-    # Use aria2c if available
-    if shutil.which("aria2c"):
-        ydl_opts["external_downloader"] = "aria2c"
-        logger.info("Using aria2c for yt-dlp.")
-    else:
-        logger.info("aria2c not found, using default downloader for yt-dlp.")
-
-    # Use extractor args if needed
+    # Set networking backend to curl_cffi to be more resilient against SSL/TLS protocol issues (like UNEXPECTED_EOF)
+    # This is much more robust when using proxies in production environments.
+    ydl_opts["file_access_retries"] = 5
+    ydl_opts["http_chunk_size"] = 10485760 # 10MB
     ydl_opts["extractor_args"] = {
         "youtube": {
             "player_client": ["default"],
@@ -81,6 +79,10 @@ def download_and_trim_youtube_audio(
             "legacy_server_connect": True,
         }
     }
+    ydl_opts["impersonate"] = ImpersonateTarget(client="chrome", os="windows", os_version="10")
+    
+    # We'll use curl_cffi as the networking backend if available (it should be after our req update)
+    # The 'impersonate' option in recent yt-dlp versions automatically selects appropriate networking backends.
 
     # Use proxy if configured
     if settings.yt_dlp_proxy is not None:
