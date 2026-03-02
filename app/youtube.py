@@ -61,6 +61,9 @@ def download_and_trim_youtube_audio(
             if os.path.exists(settings.yt_dlp_cookies_file_path)
             else None
         ),
+        "nocheckcertificate": True,
+        "socket_timeout": 30,
+        "retries": 10,
     }
 
     # Use aria2c if available
@@ -71,13 +74,15 @@ def download_and_trim_youtube_audio(
         logger.info("aria2c not found, using default downloader for yt-dlp.")
 
     # Use extractor args if needed
-    ydl_opts["extractor_args"] = {"youtube": {"player_client": ['default'], "player_js_version": ['actual']}}
+    ydl_opts["extractor_args"] = {
+        "youtube": {
+            "player_client": ["default"],
+            "player_js_version": ["actual"],
+            "legacy_server_connect": True,
+        }
+    }
 
     # Use proxy if configured
-    if settings.yt_dlp_proxy is not None:
-        ydl_opts["proxy"] = settings.yt_dlp_proxy
-        logger.info("Using proxy for yt-dlp.")
-
     if settings.yt_dlp_proxy is not None:
         ydl_opts["proxy"] = settings.yt_dlp_proxy
         logger.info("Using proxy for yt-dlp.")
