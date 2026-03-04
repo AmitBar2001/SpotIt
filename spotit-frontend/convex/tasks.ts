@@ -185,6 +185,37 @@ export const getLatestDailyTask = query({
   },
 });
 
+export const getTasks = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("tasks")
+      .order("desc")
+      .take(args.limit || 50);
+  },
+});
+
+export const retryTask = mutation({
+  args: { taskId: v.id("tasks") },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
+    await ctx.db.patch(args.taskId, {
+      status: "pending",
+      message: "Task retried",
+      updatedAt: Date.now(),
+    });
+
+    await ctx.scheduler.runAfter(0, internal.tasks.performSeparation, {
+      taskId: args.taskId,
+      songUrl: task.request.songUrl,
+      start_time: task.request.start_time,
+      duration: task.request.duration,
+    });
+  },
+});
+
 export const performSeparation = internalAction({
   args: {
     taskId: v.id("tasks"),

@@ -18,6 +18,7 @@ This file provides the Gemini CLI with essential context about the development e
   - Follow existing type hints (`| None`, `list[dict]`, etc.).
   - Ensure compatibility with system-installed `ffmpeg`.
 - **Frontend (TypeScript/React):**
+  - Design: Mobile-first approach for all UI components and layouts.
   - Follow Vite + React best practices.
   - Use Tailwind CSS for all styling.
   - Use standard React Hooks and TanStack Query for data fetching.
