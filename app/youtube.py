@@ -65,29 +65,32 @@ def download_and_trim_youtube_audio(
         "nocheckcertificate": True,
         "socket_timeout": 30,
         "retries": 10,
+        "extractor_retries": 5,
         "prefer_free_formats": True,
+        # Disable persistent connections to avoid SSL UNEXPECTED_EOF errors in violation of protocol
+        "force_generic_extractor": False,
     }
 
-    # Set networking backend to curl_cffi to be more resilient against SSL/TLS protocol issues (like UNEXPECTED_EOF)
-    # This is much more robust when using proxies in production environments.
-    ydl_opts["file_access_retries"] = 5
-    ydl_opts["http_chunk_size"] = 10485760 # 10MB
+    # Use extractor args to stabilize proxy connections
     ydl_opts["extractor_args"] = {
         "youtube": {
-            "player_client": ["default"],
+            "player_client": ["android", "web_safari", "tv", "default"],
             "player_js_version": ["actual"],
             "legacy_server_connect": True,
         }
     }
-    ydl_opts["impersonate"] = ImpersonateTarget(client="chrome", os="windows", os_version="10")
-    
-    # We'll use curl_cffi as the networking backend if available (it should be after our req update)
-    # The 'impersonate' option in recent yt-dlp versions automatically selects appropriate networking backends.
 
     # Use proxy if configured
     if settings.yt_dlp_proxy is not None:
         ydl_opts["proxy"] = settings.yt_dlp_proxy
         logger.info("Using proxy for yt-dlp.")
+
+    # Use aria2c if available
+    if shutil.which("aria2c"):
+        ydl_opts["external_downloader"] = "aria2c"
+        logger.info("Using aria2c for yt-dlp.")
+    else:
+        logger.info("aria2c not found, using default downloader for yt-dlp.")
 
     try:
         logger.debug(f"yt_dlp options: {ydl_opts}")

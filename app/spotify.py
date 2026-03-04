@@ -11,11 +11,11 @@ from urllib3.util import Retry
 # Authenticate with Client Credentials Flow
 # Configure retry strategy to handle ReadTimeouts
 retry_strategy = Retry(
-    total=3,
-    backoff_factor=0.3,
+    total=5,
+    backoff_factor=1,
     status_forcelist=[429, 500, 502, 503, 504],
     allowed_methods=["HEAD", "GET", "OPTIONS", "POST", "PUT", "DELETE"],
-    read=3,  # Enable retries for ReadTimeout errors
+    read=5,  # Enable retries for ReadTimeout errors
 )
 session = requests.Session()
 adapter = HTTPAdapter(max_retries=retry_strategy)
@@ -26,9 +26,10 @@ sp = spotipy.Spotify(
     auth_manager=SpotifyClientCredentials(
         client_id=settings.spotify_client_id,
         client_secret=settings.spotify_client_secret,
+        requests_session=session,
     ),
     requests_session=session,
-    requests_timeout=15,
+    requests_timeout=30,
 )
 
 
