@@ -29,7 +29,7 @@ jobs:
 
       - name: Deploy to Convex
         working-directory: ./spotit-frontend
-        run: npx convex deploy --wait-for-schema-accepted
+        run: npx convex deploy
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
 
