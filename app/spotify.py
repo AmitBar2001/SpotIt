@@ -18,6 +18,13 @@ retry_strategy = Retry(
     read=5,  # Enable retries for ReadTimeout errors
 )
 session = requests.Session()
+if settings.yt_dlp_proxy:
+    session.proxies = {
+        "http": settings.yt_dlp_proxy,
+        "https": settings.yt_dlp_proxy,
+    }
+    logger.info(f"Using proxy for Spotify: {settings.yt_dlp_proxy}")
+
 adapter = HTTPAdapter(max_retries=retry_strategy)
 session.mount("https://", adapter)
 session.mount("http://", adapter)
