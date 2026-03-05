@@ -42,6 +42,7 @@ def download_and_trim_youtube_audio(
     
     ydl_opts = {
         "format": "bestaudio/best",
+        "verbose": settings.log_level == "DEBUG",
         "outtmpl": outtmpl,
         "noplaylist": True,
         "legacy_server_connect": True,
