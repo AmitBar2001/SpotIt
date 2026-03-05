@@ -2,6 +2,12 @@ import unittest
 import os
 import shutil
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env in the project root
+ROOT_DIR = Path(__file__).parent.parent
+load_dotenv(dotenv_path=ROOT_DIR / ".env")
+
 from app.youtube import download_and_trim_youtube_audio
 from app.config import settings
 
@@ -18,7 +24,7 @@ class TestYouTubeDownload(unittest.TestCase):
 
     def test_download_and_trim_by_url(self):
         # Use a YouTube help video
-        test_url = "https://www.youtube.com/watch?v=M7lc1UVf-VE"
+        test_url = "https://www.youtube.com/watch?v=fYGPcfUqzL0"
         duration = 3
         
         trimmed_path, info = download_and_trim_youtube_audio(

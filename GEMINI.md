@@ -14,6 +14,7 @@ This file provides the Gemini CLI with essential context about the development e
 ### Coding Style
 - **Backend (Python):** 
   - Mimic standard FastAPI and Pydantic (BaseSettings) patterns.
+  - ONLY use environment variables through the `Settings` class in `app/config.py`.
   - Use `unittest` for testing in the `tests/` directory.
   - Follow existing type hints (`| None`, `list[dict]`, etc.).
   - Ensure compatibility with system-installed `ffmpeg`.
@@ -36,6 +37,10 @@ This file provides the Gemini CLI with essential context about the development e
 - `spotit-frontend/`: Frontend React application.
 - `tests/`: Backend test suite (using `unittest`).
 - `venv/`: Local Python virtual environment containing project dependencies.
+
+## Deployment
+- **Backend:** The production FastAPI application is hosted on **Hugging Face Spaces**. 
+- **Frontend:** Deployed to **GitHub Pages**.
 
 ## Key Dependencies & Tools
 - **Backend:** FastAPI, pydantic (BaseSettings), yt-dlp (with `yt-dlp-ejs` and `pycryptodomex` for JS challenge solving), ffmpeg (installed in system PATH).

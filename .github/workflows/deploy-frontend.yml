@@ -38,6 +38,9 @@ jobs:
       - name: Build Frontend
         working-directory: ./spotit-frontend
         run: pnpm run build
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_CONVEX_URL: ${{ vars.VITE_CONVEX_URL }}
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4

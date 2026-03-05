@@ -55,8 +55,6 @@ def download_and_trim_youtube_audio(
         "writesubtitles": False,
         "writeinfojson": True,
         "keepvideo": False,
-        "js_runtimes": {"node": {}},
-        "remote_components": ["ejs:github"],
         "cookiefile": (
             settings.yt_dlp_cookies_file_path
             if os.path.exists(settings.yt_dlp_cookies_file_path)
@@ -67,17 +65,11 @@ def download_and_trim_youtube_audio(
         "retries": 10,
         "extractor_retries": 5,
         "prefer_free_formats": True,
-        # Disable persistent connections to avoid SSL UNEXPECTED_EOF errors in violation of protocol
-        "force_generic_extractor": False,
-    }
-
-    # Use extractor args to stabilize proxy connections
-    ydl_opts["extractor_args"] = {
-        "youtube": {
-            "player_client": ["android", "web_safari", "tv", "default"],
-            "player_js_version": ["actual"],
-            "legacy_server_connect": True,
-        }
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["web", "mweb"],
+            }
+        },
     }
 
     # Use proxy if configured

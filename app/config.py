@@ -1,4 +1,11 @@
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 from pydantic import BaseSettings
+
+# Load .env file from the root directory of the project
+ROOT_DIR = Path(__file__).parent.parent
+load_dotenv(dotenv_path=ROOT_DIR / ".env")
 
 
 class Settings(BaseSettings):
