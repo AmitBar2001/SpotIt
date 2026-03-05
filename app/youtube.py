@@ -44,6 +44,8 @@ def download_and_trim_youtube_audio(
         "format": "bestaudio/best",
         "outtmpl": outtmpl,
         "noplaylist": True,
+        "legacy_server_connect": True,
+        "impersonate": ImpersonateTarget("chrome"),
         "postprocessors": [
             {
                 "key": "FFmpegExtractAudio",
@@ -67,7 +69,9 @@ def download_and_trim_youtube_audio(
         "prefer_free_formats": True,
         "extractor_args": {
             "youtube": {
-                "player_client": ["web", "mweb"],
+                "player_client": ["ios", "web", "mweb"],
+                "include_dash_manifest": False,
+                "include_hls_manifest": False,
             }
         },
     }
