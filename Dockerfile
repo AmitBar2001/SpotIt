@@ -11,7 +11,8 @@ RUN useradd -m -u 1000 user
 USER user
 
 ENV HOME=/home/user \
-	PATH=/home/user/.local/bin:$PATH
+	PATH=/home/user/.local/bin:$PATH \
+	LD_LIBRARY_PATH=/home/user/.local/lib/python3.11/site-packages/curl_cffi.libs:$LD_LIBRARY_PATH
 
 WORKDIR $HOME
 

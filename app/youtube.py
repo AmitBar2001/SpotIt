@@ -74,8 +74,6 @@ def download_and_trim_youtube_audio(
         "extractor_args": {
             "youtube": {
                 "player_client": ["tv", "web"],
-                "include_dash_manifest": False,
-                "include_hls_manifest": False,
             }
         },
     }
