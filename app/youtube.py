@@ -45,7 +45,6 @@ def download_and_trim_youtube_audio(
         "verbose": settings.log_level == "DEBUG",
         "outtmpl": outtmpl,
         "noplaylist": True,
-        "impersonate": ImpersonateTarget("chrome"),
         "force_ipv4": True,
         "source_address": "0.0.0.0",
         "geo_bypass": True,
