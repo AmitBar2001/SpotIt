@@ -45,8 +45,11 @@ def download_and_trim_youtube_audio(
         "verbose": settings.log_level == "DEBUG",
         "outtmpl": outtmpl,
         "noplaylist": True,
-        "legacy_server_connect": True,
         "impersonate": ImpersonateTarget("chrome"),
+        "force_ipv4": True,
+        "source_address": "0.0.0.0",
+        "geo_bypass": True,
+        "cachedir": False,
         "postprocessors": [
             {
                 "key": "FFmpegExtractAudio",
