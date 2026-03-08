@@ -4,12 +4,9 @@ import shutil
 
 from fastapi import HTTPException
 from app.logger import logger
-from demucs.separate import main as demucs_separate
-import subprocess
-
-
 def run_demucs_separation(audio_path: Path, output_path: Path) -> Path:
     """Runs the Demucs separation process on a given audio file."""
+    from demucs.separate import main as demucs_separate
     model_name = "htdemucs_6s"
     try:
         demucs_args = [

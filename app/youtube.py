@@ -67,12 +67,12 @@ def download_and_trim_youtube_audio(
         ),
         "nocheckcertificate": True,
         "socket_timeout": 30,
-        "retries": 10,
+        "retries": 5,
         "extractor_retries": 5,
         "prefer_free_formats": True,
         "extractor_args": {
             "youtube": {
-                "player_client": ["ios", "web", "mweb"],
+                "player_client": ["tv", "web"],
                 "include_dash_manifest": False,
                 "include_hls_manifest": False,
             }
@@ -81,7 +81,7 @@ def download_and_trim_youtube_audio(
 
     # Use proxy if configured
     if settings.yt_dlp_proxy is not None:
-        ydl_opts["proxy"] = settings.yt_dlp_proxy
+        ydl_opts["proxy"] = settings.yt_dlp_proxy.strip()
         logger.info("Using proxy for yt-dlp.")
 
     # Use aria2c if available
