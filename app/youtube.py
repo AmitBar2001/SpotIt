@@ -43,6 +43,7 @@ def download_and_trim_youtube_audio(
     ydl_opts = {
         "format": "bestaudio/best",
         "verbose": settings.log_level == "DEBUG",
+        "impersonate": ImpersonateTarget("firefox"),
         "outtmpl": outtmpl,
         "noplaylist": True,
         "force_ipv4": True,
